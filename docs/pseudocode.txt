@@ -1,0 +1,34 @@
+- login, register
+  - easy
+- List all books
+  - select from Book left join BookBorrowRequest
+    where BookBorrowRequest.id is null or BookBorrowRequest.status != 'BORROWED'
+- Filter books by ...
+  - Same as list all books with conditions
+- View book
+  - Select by id
+- Add book, remove book
+  - easy
+- Send borrow request
+  - User can't send borrow request to himself
+  - insert into BookBorrowRequest
+- List borrow requests other users sent to me
+  - select from BookBorrowRequest where lender.id = me
+- Accept a borrow request from another user
+  - some business checks
+  - update BookBorrowRequest -> status = BORROWED
+- Reject a borrow request from another user
+  - some business checks
+  - update BookBorrowRequest -> status = REJECTED
+- List borrow requests I sent
+  - select from BookBorrowRequest where borrower.id = me
+- Send a message to lender or borrower
+  - if !exists(select from BookBorrowRequest where lenderId = me/him and borrowerId = me/him)
+    - reject
+  - insert into Message
+- List messages to/from a user
+  - select * from messages where senderId = me/him, receiverId = me/him
+- Admin view statistics
+  - select count from Book left join BookBorrowRequest where status = 'BORROWED'
+  - select count from Book left join BookBorrowRequest where status != 'BORROWED'
+  - select count from BookBorrowRequest group by status

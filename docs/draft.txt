@@ -12,7 +12,7 @@
     - Description
     - Author
     - Genre
-  - Add book (mark as available for lending)
+  - Add book (put as available for lending)
   - Remove book (stop lending)
   - Send a borrow request
   - List borrow requests other users sent to me
@@ -28,11 +28,12 @@
     - Number of accepted/rejected/pending requests
 
 - Assumptions
+  - Requests/responses happen interactively between the client and the server (not in an RMI-like manner)
   - User gets to choose account type on registration
   - Description is needed to differentiate book listing view from detailed view
   - Borrowing a book hides it from the bookstore
     - Returning it unhides it
   - Chatting between lender and borrower is not real-time
-  - "accepted/rejected/pending requests so far" means statistics about them (their number) since it falls under
-    "provide the admin with the ability to view the overall status of the library"
+  - The admin statistics are numbers not listings (hence the term "statistics")
   - "ACCEPTED" borrow request status is split into "BORROWED" and "RETURNED"
+  - "browse through the bookstore's catalog" means list all available books for borrowing
