@@ -1,0 +1,7 @@
+volumes:
+  ds-assignment:
+    external: false
+
+services:
+  ds-server:
+    build: server/
