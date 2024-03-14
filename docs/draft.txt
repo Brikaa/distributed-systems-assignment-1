@@ -1,0 +1,38 @@
+- Requirements
+  - Multiple roles
+    - User
+    - Admin
+  - List all books
+  - Filter books by
+    - Title
+    - Author
+    - Genre
+  - View detailed information about a certain book
+    - Title
+    - Description
+    - Author
+    - Genre
+  - Add book (mark as available for lending)
+  - Remove book (stop lending)
+  - Send a borrow request
+  - List borrow requests other users sent to me
+  - Accept a borrow request from another user
+  - Reject a borrow request from another user
+  - List borrow requests I sent
+  - Send a message to lender or borrower
+    - There must be a book that is currently borrowed from the lender to the borrower
+  - List messages to/from a user
+  - As an admin, view the status of the library:
+    - Current borrowed books
+    - Current available (non-borrowed) books
+    - Number of accepted/rejected/pending requests
+
+- Assumptions
+  - User gets to choose account type on registration
+  - Description is needed to differentiate book listing view from detailed view
+  - Borrowing a book hides it from the bookstore
+    - Returning it unhides it
+  - Chatting between lender and borrower is not real-time
+  - "accepted/rejected/pending requests so far" means statistics about them (their number) since it falls under
+    "provide the admin with the ability to view the overall status of the library"
+  - "ACCEPTED" borrow request status is split into "BORROWED" and "RETURNED"
