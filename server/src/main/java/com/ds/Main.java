@@ -9,25 +9,42 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 class Session {
-    public String id;
+    public UUID id;
 }
 
 public class Main {
     public static void main(String[] args) throws SQLException, NumberFormatException, IOException {
         Map<String, String> env = System.getenv();
+
+        // Set up db connection
         Properties props = new Properties();
         props.setProperty("user", env.get("DB_USER"));
         props.setProperty("password", env.get("DB_PASSWORD"));
         String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
         Connection conn = DriverManager.getConnection(url, props);
-        ServerSocket socket = new ServerSocket(Integer.parseInt(System.getenv("PORT")));
+
+        // Set up socket connection
+        ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")));
+
+        // Set up graceful exit
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                System.out.println("Exiting the server...");
+                socket.close();
+            } catch (IOException e) {
+                System.out.println("Failed to close the socket");
+            }
+        }));
 
         // Connection accepting loop
+        System.out.println("Listening for connections...");
         while (true) {
             Socket client = socket.accept();
             System.out.println("Accepted client connection");
@@ -39,7 +56,7 @@ public class Main {
                 try {
                     writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
                     reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                    runClientLoop(writer, reader);
+                    runClientLoop(conn, writer, reader);
                 } catch (IOException e) {
                     System.out.println("Failed to communicate with client: " + e.toString());
                     return;
@@ -50,37 +67,65 @@ public class Main {
         }
     }
 
-    private static void runClientLoop(BufferedWriter writer, BufferedReader reader) throws IOException {
+    private static void runClientLoop(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException {
         Session session = new Session();
         while (true) {
-            if (session.id == null) {
-                sendMessage(writer, "1. Register\n 2. Login");
-                Integer choice = getInputInRange(reader, writer, 1, 2);
+            try {
+                if (session.id == null) {
+                    Communication.sendMessage(writer, "1. Register\n2. Login");
+                    Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
+                    if (choice == 1) {
+                        register(conn, writer, reader);
+                    }
+                }
+            } catch (SQLException e) {
+                Communication.sendMessage(writer, "An internal error has occurred");
+                e.printStackTrace();
             }
         }
     }
 
-    private static void sendMessage(BufferedWriter writer, String message) throws IOException {
-        writer.write(message);
-        writer.newLine();
-        writer.flush();
-    }
+    private static void register(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "Your name");
+        String name = Communication.receiveMessage(reader);
+        Communication.sendMessage(writer, "Your username");
+        String username = Communication.receiveMessage(reader);
+        Communication.sendMessage(writer, "Your password");
+        String password = Communication.receiveMessage(reader);
+        Communication.sendMessage(writer, "Are you an admin\n1. Yes\n2. No");
+        boolean isAdmin = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1;
 
-    private static Integer getInputInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
-            throws IOException {
-        Integer response = parseIntOrNull(reader.readLine());
-        while (response == null) {
-            sendMessage(writer, "Invalid choice");
-            response = parseIntOrNull(reader.readLine());
+        if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
+            Communication.sendMessage(writer, "Username, name and password can't be empty.");
+            return;
         }
-        return response;
-    }
 
-    private static Integer parseIntOrNull(String str) {
-        if (!str.matches("-?\\d+")) {
-            return null;
-        }
-        return Integer.parseInt(str);
-    }
+        // Check if user already exists
+        Database.withPreparedStatement(
+                conn,
+                "SELECT id FROM AppUser WHERE username=?",
+                new ParameterSetting[] { (i, st) -> st.setString(i, username) },
+                (st) -> {
+                    ResultSet rs = st.executeQuery();
+                    if (rs.next()) {
+                        Communication.sendMessage(writer, "400. A user with this username already exists");
+                        return;
+                    }
+                    rs.close();
+                });
 
+        // Insert user
+        Database.withPreparedStatement(
+                conn,
+                "INSERT INTO AppUser(username, name, password, isAdmin) VALUES (?, ?, ?, ?)",
+                new ParameterSetting[] {
+                        (i, st) -> st.setString(i, username),
+                        (i, st) -> st.setString(i, name),
+                        (i, st) -> st.setString(i, password),
+                        (i, st) -> st.setBoolean(i, isAdmin)
+                },
+                (st) -> st.executeUpdate());
+    }
 }

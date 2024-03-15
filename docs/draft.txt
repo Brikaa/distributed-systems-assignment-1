@@ -38,3 +38,11 @@
   - The admin statistics are numbers not listings (hence the term "statistics")
   - "ACCEPTED" borrow request status is split into "BORROWED" and "RETURNED"
   - "browse through the bookstore's catalog" means list all available books for borrowing
+
+- Extra points
+  - Graceful exiting
+  - Abstractions to handle automatically closing the prepared statement, and automatically incrementing the positional
+    parameters
+
+- Nice to have
+  - Abstraction for menu choices
