@@ -5,12 +5,12 @@ volumes:
 networks:
   ds-db:
     external: false
+  ds-client:
+    external: false
 
 services:
   ds-server:
     build: server/
-    ports:
-      - '8080:8080'
     environment:
       - PORT=8080
       - DB_PASSWORD=user123
@@ -19,6 +19,7 @@ services:
       - DB_HOST=ds-db
     networks:
       - ds-db
+      - ds-client
     depends_on:
       ds-db:
         condition: service_healthy
@@ -34,6 +35,17 @@ services:
       - POSTGRES_DB=app
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U user -d app']
-      interval: 5s
+      interval: 3s
       timeout: 5s
       retries: 5
+  ds-client:
+    build: client/
+    networks:
+      - ds-client
+    depends_on:
+      - ds-server
+    stdin_open: true
+    tty: true
+    environment:
+      - SERVER_HOST=ds-server
+      - SERVER_PORT=8080

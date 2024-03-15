@@ -17,10 +17,10 @@ public class Communication {
 
     public static Integer receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
             throws IOException {
-        Integer response = parseIntOrNull(reader.readLine());
+        Integer response = parseIntOrNull(receiveMessage(reader));
         while (response == null) {
             sendMessage(writer, "Invalid choice");
-            response = parseIntOrNull(reader.readLine());
+            response = parseIntOrNull(receiveMessage(reader));
         }
         return response;
     }

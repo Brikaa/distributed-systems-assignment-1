@@ -24,37 +24,57 @@ public class Main {
     public static void main(String[] args) throws SQLException, NumberFormatException, IOException {
         final Map<String, String> env = System.getenv();
 
-        // DB Connection properties
+        // Set up db connection
         Properties props = new Properties();
         props.setProperty("user", env.get("DB_USER"));
         props.setProperty("password", env.get("DB_PASSWORD"));
         final String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
+        Connection conn = DriverManager.getConnection(url, props);
 
-        // With db connection and server socket
-        try (Connection conn = DriverManager.getConnection(url, props);
-                ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")))) {
-            // Connection accepting loop
-            System.out.println("Listening for connections...");
-            while (true) {
-                try (Socket client = socket.accept()) {
-                    System.out.println("Accepted client connection");
-                    // Per-client thread
-                    Thread t = new Thread(() -> {
-                        try (
-                                BufferedWriter writer = new BufferedWriter(
-                                        new OutputStreamWriter(client.getOutputStream()));
-                                BufferedReader reader = new BufferedReader(
-                                        new InputStreamReader(client.getInputStream()))) {
-                            runClientLoop(conn, writer, reader);
-                        } catch (IOException e) {
-                            System.out.println("Failed to communicate with client: " + e.toString());
-                            return;
-                        }
-                    });
+        // Set up server socket
+        ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")));
 
-                    t.start();
-                }
+        // Graceful shutdown
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Gracefully stopping the server...");
+            try {
+                socket.close();
+            } catch (IOException e) {
+                System.out.println("Failed to close the server socket: " + e);
             }
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                System.out.println("Failed to close the database connection: " + e);
+            }
+        }));
+
+        // Connection accepting loop
+        System.out.println("Listening for connections...");
+        while (true) {
+            Socket client = socket.accept();
+            System.out.println("Accepted client connection");
+            // Per-client thread
+            Thread t = new Thread(() -> {
+                try (
+                        BufferedWriter writer = new BufferedWriter(
+                                new OutputStreamWriter(client.getOutputStream()));
+                        BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(client.getInputStream()))) {
+                    runClientLoop(conn, writer, reader);
+                } catch (IOException e) {
+                    System.out.println("Failed to communicate with client: " + e.toString());
+                    return;
+                } finally {
+                    try {
+                        client.close();
+                    } catch (IOException e) {
+                        System.out.println("Failed to close connection for client: " + e);
+                    }
+                }
+            });
+
+            t.start();
         }
     }
 

@@ -1,5 +1,5 @@
-start:
-	docker compose up --build -d
+start-server:
+	docker compose up --build -d ds-server
 	make logs
 
 sql:
@@ -13,3 +13,6 @@ logs:
 
 stop:
 	docker compose down
+
+start-client:
+	docker compose up --build ds-client
