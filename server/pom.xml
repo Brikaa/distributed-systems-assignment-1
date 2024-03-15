@@ -11,6 +11,7 @@
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <exec.mainClass>com.ds.Main</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -24,18 +25,24 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <mainClass>com.ds.Main</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.2.0</version>
             </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                  <archive>
+                    <manifest>
+                      <mainClass>com.ds.Main</mainClass>
+                    </manifest>
+                  </archive>
+                  <descriptorRefs>
+                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                  </descriptorRefs>
+                </configuration>
+              </plugin>
         </plugins>
     </build>
 
