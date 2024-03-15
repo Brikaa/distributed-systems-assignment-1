@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
@@ -21,49 +22,39 @@ class Session {
 
 public class Main {
     public static void main(String[] args) throws SQLException, NumberFormatException, IOException {
-        Map<String, String> env = System.getenv();
+        final Map<String, String> env = System.getenv();
 
-        // Set up db connection
+        // DB Connection properties
         Properties props = new Properties();
         props.setProperty("user", env.get("DB_USER"));
         props.setProperty("password", env.get("DB_PASSWORD"));
-        String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
-        Connection conn = DriverManager.getConnection(url, props);
+        final String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
 
-        // Set up socket connection
-        ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")));
+        // With db connection and server socket
+        try (Connection conn = DriverManager.getConnection(url, props);
+                ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")))) {
+            // Connection accepting loop
+            System.out.println("Listening for connections...");
+            while (true) {
+                try (Socket client = socket.accept()) {
+                    System.out.println("Accepted client connection");
+                    // Per-client thread
+                    Thread t = new Thread(() -> {
+                        try (
+                                BufferedWriter writer = new BufferedWriter(
+                                        new OutputStreamWriter(client.getOutputStream()));
+                                BufferedReader reader = new BufferedReader(
+                                        new InputStreamReader(client.getInputStream()))) {
+                            runClientLoop(conn, writer, reader);
+                        } catch (IOException e) {
+                            System.out.println("Failed to communicate with client: " + e.toString());
+                            return;
+                        }
+                    });
 
-        // Set up graceful exit
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                System.out.println("Exiting the server...");
-                socket.close();
-            } catch (IOException e) {
-                System.out.println("Failed to close the socket");
-            }
-        }));
-
-        // Connection accepting loop
-        System.out.println("Listening for connections...");
-        while (true) {
-            Socket client = socket.accept();
-            System.out.println("Accepted client connection");
-
-            // Per-client thread
-            Thread t = new Thread(() -> {
-                BufferedWriter writer;
-                BufferedReader reader;
-                try {
-                    writer = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
-                    reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                    runClientLoop(conn, writer, reader);
-                } catch (IOException e) {
-                    System.out.println("Failed to communicate with client: " + e.toString());
-                    return;
+                    t.start();
                 }
-            });
-
-            t.start();
+            }
         }
     }
 
@@ -103,29 +94,25 @@ public class Main {
         }
 
         // Check if user already exists
-        Database.withPreparedStatement(
-                conn,
-                "SELECT id FROM AppUser WHERE username=?",
-                new ParameterSetting[] { (i, st) -> st.setString(i, username) },
-                (st) -> {
-                    ResultSet rs = st.executeQuery();
-                    if (rs.next()) {
-                        Communication.sendMessage(writer, "400. A user with this username already exists");
-                        return;
-                    }
-                    rs.close();
-                });
+        try (PreparedStatement st = conn.prepareStatement("SELECT id FROM AppUser WHERE username=?")) {
+            st.setString(1, username);
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    Communication.sendMessage(writer, "400. A user with this username already exists");
+                    return;
+                }
+            }
+        }
 
         // Insert user
-        Database.withPreparedStatement(
-                conn,
-                "INSERT INTO AppUser(username, name, password, isAdmin) VALUES (?, ?, ?, ?)",
-                new ParameterSetting[] {
-                        (i, st) -> st.setString(i, username),
-                        (i, st) -> st.setString(i, name),
-                        (i, st) -> st.setString(i, password),
-                        (i, st) -> st.setBoolean(i, isAdmin)
-                },
-                (st) -> st.executeUpdate());
+        try (PreparedStatement st = conn
+                .prepareStatement("INSERT INTO AppUser(username, name, password, isAdmin) VALUES (?, ?, ?, ?)")) {
+            int i = 1;
+            st.setString(i++, username);
+            st.setString(i++, name);
+            st.setString(i++, password);
+            st.setBoolean(i++, isAdmin);
+            st.executeUpdate();
+        }
     }
 }

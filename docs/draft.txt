@@ -41,8 +41,7 @@
 
 - Extra points
   - Graceful exiting
-  - Abstractions to handle automatically closing the prepared statement, and automatically incrementing the positional
-    parameters
+  - try-with-resources to auto-close resources
 
 - Nice to have
   - Abstraction for menu choices
