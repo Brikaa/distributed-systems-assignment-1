@@ -19,7 +19,8 @@ services:
     networks:
       - ds-db
     depends_on:
-      - ds-db
+      ds-db:
+        condition: service_healthy
   ds-db:
     build: db/
     networks:
@@ -30,3 +31,8 @@ services:
       - POSTGRES_PASSWORD=user123
       - POSTGRES_USER=user
       - POSTGRES_DB=app
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d app']
+      interval: 5s
+      timeout: 5s
+      retries: 5
