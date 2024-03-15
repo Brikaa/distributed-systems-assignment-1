@@ -15,4 +15,4 @@ stop:
 	docker compose down
 
 start-client:
-	docker compose up --build ds-client
+	docker compose up --build -d ds-client && docker compose attach ds-client

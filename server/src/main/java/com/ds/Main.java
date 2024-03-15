@@ -135,10 +135,10 @@ public class Main {
         // Insert user
         try (PreparedStatement st = conn
                 .prepareStatement("INSERT INTO AppUser(username, name, password, isAdmin) VALUES (?, ?, ?, ?)")) {
-            st.setString(0, username);
-            st.setString(1, name);
-            st.setString(2, password);
-            st.setBoolean(3, isAdmin);
+            st.setString(1, username);
+            st.setString(2, name);
+            st.setString(3, password);
+            st.setBoolean(4, isAdmin);
             st.executeUpdate();
         }
     }
@@ -149,7 +149,7 @@ public class Main {
         String username = Communication.receiveMessage(reader);
 
         try (PreparedStatement st = conn.prepareStatement("SELECT id, password FROM AppUser WHERE username=?")) {
-            st.setString(0, username);
+            st.setString(1, username);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
                     Communication.sendMessage(writer, "404. Invalid username");
