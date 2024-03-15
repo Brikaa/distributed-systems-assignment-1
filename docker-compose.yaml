@@ -12,6 +12,7 @@ services:
     ports:
       - '8080:8080'
     environment:
+      - PORT=8080
       - DB_PASSWORD=user123
       - DB_USER=user
       - DB_NAME=app

@@ -29,6 +29,7 @@
 
 - Assumptions
   - Requests/responses happen interactively between the client and the server (not in an RMI-like manner)
+    - The server is responsible for driving the communication
   - User gets to choose account type on registration
   - Description is needed to differentiate book listing view from detailed view
   - Borrowing a book hides it from the bookstore
