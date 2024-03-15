@@ -1,1 +1,6 @@
 - Test client disconnects at any time
+- Test register
+- Test register existing username
+- Test login
+- Test login invalid username
+- Test login invalid password

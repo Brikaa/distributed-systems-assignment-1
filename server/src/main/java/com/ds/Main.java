@@ -68,6 +68,14 @@ public class Main {
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
                     if (choice == 1) {
                         register(conn, writer, reader);
+                    } else {
+                        login(conn, session, writer, reader);
+                    }
+                } else {
+                    Communication.sendMessage(writer, "1. Logout");
+                    Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
+                    if (choice == 1) {
+                        session.id = null;
                     }
                 }
             } catch (SQLException e) {
@@ -107,12 +115,37 @@ public class Main {
         // Insert user
         try (PreparedStatement st = conn
                 .prepareStatement("INSERT INTO AppUser(username, name, password, isAdmin) VALUES (?, ?, ?, ?)")) {
-            int i = 1;
-            st.setString(i++, username);
-            st.setString(i++, name);
-            st.setString(i++, password);
-            st.setBoolean(i++, isAdmin);
+            st.setString(0, username);
+            st.setString(1, name);
+            st.setString(2, password);
+            st.setBoolean(3, isAdmin);
             st.executeUpdate();
         }
     }
+
+    private static void login(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "Your username");
+        String username = Communication.receiveMessage(reader);
+
+        try (PreparedStatement st = conn.prepareStatement("SELECT id, password FROM AppUser WHERE username=?")) {
+            st.setString(0, username);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    Communication.sendMessage(writer, "404. Invalid username");
+                    return;
+                }
+
+                Communication.sendMessage(writer, "Your password");
+                String password = Communication.receiveMessage(reader);
+                if (!rs.getString("password").equals(password)) {
+                    System.out.println("Invalid password");
+                    return;
+                }
+
+                session.id = rs.getObject("id", UUID.class);
+            }
+        }
+    }
+
 }
