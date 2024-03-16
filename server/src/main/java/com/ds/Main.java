@@ -101,7 +101,8 @@ public class Main {
                                     1. List available books
                                     2. Search for a book
                                     3. View detailed information about book
-                                    4. Add a book for lending""");
+                                    4. Add a book for lending
+                                    5. Stop lending a book""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -114,7 +115,10 @@ public class Main {
                             viewBookDetails(conn, writer, reader);
                             break;
                         case 4:
-                            addBook(conn, writer, reader);
+                            addBook(conn, session, writer, reader);
+                            break;
+                        case 5:
+                            removeBook(conn, session, writer, reader);
                             break;
                         default:
                             break;
@@ -238,7 +242,7 @@ public class Main {
         }
     }
 
-    private static void addBook(Connection conn, BufferedWriter writer, BufferedReader reader)
+    private static void addBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         // title, author, genre, description
         Communication.sendMessage(writer, "Book title");
@@ -251,12 +255,38 @@ public class Main {
         String description = Communication.receiveNonEmptyMessage(reader, writer);
 
         try (PreparedStatement st = conn
-                .prepareStatement("INSERT INTO Book(title, author, genre, description) VALUES (?, ?, ?, ?)")) {
-            st.setString(1, title);
-            st.setString(2, author);
-            st.setString(3, genre);
-            st.setString(4, description);
+                .prepareStatement(
+                        "INSERT INTO Book(lenderId, title, author, genre, description) VALUES (?, ?, ?, ?, ?)")) {
+            st.setObject(1, session.id);
+            st.setString(2, title);
+            st.setString(3, author);
+            st.setString(4, genre);
+            st.setString(5, description);
             st.executeUpdate();
+        }
+    }
+
+    private static void removeBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "Book id");
+        String id = Communication.receiveNonEmptyMessage(reader, writer);
+        try (PreparedStatement st = conn
+                .prepareStatement(CommonMainLoopProcedures.buildAvailableBooksQuery("id", "AND Book.lenderId = ?"))) {
+            st.setObject(1, session.id);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    Communication.sendMessage(writer, "Can't delete this book");
+                    return;
+                }
+            }
+        }
+        try (PreparedStatement st = conn.prepareStatement("DELETE FROM Book WHERE id = ? AND lenderId = ?")) {
+            st.setString(1, id);
+            st.setObject(2, session.id);
+            int affected = st.executeUpdate();
+            if (affected == 0) {
+                Communication.sendMessage(writer, "Could not delete this book");
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ CREATE TABLE AppUser (
 
 CREATE TABLE Book (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  lenderId UUID NOT NULL REFERENCES AppUser (id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description VARCHAR(625) NOT NULL,
   author VARCHAR(255) NOT NULL,
@@ -19,15 +20,14 @@ CREATE TABLE Book (
 
 CREATE TABLE BookBorrowRequest (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  bookId UUID NOT NULL REFERENCES Book (id),
-  lenderId UUID NOT NULL REFERENCES AppUser (id),
-  borrowerId UUID NOT NULL REFERENCES AppUser (id),
+  bookId UUID NOT NULL REFERENCES Book (id) ON DELETE CASCADE,
+  borrowerId UUID NOT NULL REFERENCES AppUser (id) ON DELETE CASCADE,
   status status NOT NULL
 );
 
 CREATE TABLE Message (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  senderId UUID NOT NULL REFERENCES AppUser(id),
-  receiverId UUID NOT NULL REFERENCES AppUser(id),
+  senderId UUID NOT NULL REFERENCES AppUser(id) ON DELETE CASCADE,
+  receiverId UUID NOT NULL REFERENCES AppUser(id) ON DELETE CASCADE,
   body TEXT
 );
