@@ -49,30 +49,35 @@ public class Main {
         // Connection accepting loop
         System.out.println("Listening for connections...");
         while (true) {
-            Socket client = socket.accept();
-            System.out.println("Accepted client connection");
-            // Per-client thread
-            Thread t = new Thread(() -> {
-                try (
-                        BufferedWriter writer = new BufferedWriter(
-                                new OutputStreamWriter(client.getOutputStream()));
-                        BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(client.getInputStream()))) {
-                    runClientLoop(conn, writer, reader);
-                } catch (IOException e) {
-                    System.out.println("Failed to communicate with client: " + e.toString());
-                    return;
-                } finally {
-                    try {
-                        client.close();
-                        System.out.println("Closed the client connection");
+            try {
+                Socket client = socket.accept();
+                System.out.println("Accepted client connection");
+                // Per-client thread
+                Thread t = new Thread(() -> {
+                    try (
+                            BufferedWriter writer = new BufferedWriter(
+                                    new OutputStreamWriter(client.getOutputStream()));
+                            BufferedReader reader = new BufferedReader(
+                                    new InputStreamReader(client.getInputStream()))) {
+                        runClientLoop(conn, writer, reader);
                     } catch (IOException e) {
-                        System.out.println("Failed to close connection for client: " + e);
+                        System.out.println("Failed to communicate with client: " + e.toString());
+                        return;
+                    } finally {
+                        try {
+                            client.close();
+                            System.out.println("Closed the client connection");
+                        } catch (IOException e) {
+                            System.out.println("Failed to close connection for client: " + e);
+                        }
                     }
-                }
-            });
+                });
 
-            t.start();
+                t.start();
+            } catch (IOException e) {
+                System.out.println("Failed to listen for connections: " + e);
+                break;
+            }
         }
     }
 
