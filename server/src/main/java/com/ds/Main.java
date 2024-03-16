@@ -100,7 +100,8 @@ public class Main {
                             """
                                     1. List available books
                                     2. Search for a book
-                                    3. View detailed information about book""");
+                                    3. View detailed information about book
+                                    4. Add a book for lending""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -111,6 +112,9 @@ public class Main {
                             break;
                         case 3:
                             viewBookDetails(conn, writer, reader);
+                            break;
+                        case 4:
+                            addBook(conn, writer, reader);
                             break;
                         default:
                             break;
@@ -126,11 +130,11 @@ public class Main {
     private static void register(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         Communication.sendMessage(writer, "Your name");
-        String name = Communication.receiveMessage(reader);
+        String name = Communication.receiveNonEmptyMessage(reader, writer);
         Communication.sendMessage(writer, "Your username");
-        String username = Communication.receiveMessage(reader);
+        String username = Communication.receiveNonEmptyMessage(reader, writer);
         Communication.sendMessage(writer, "Your password");
-        String password = Communication.receiveMessage(reader);
+        String password = Communication.receiveNonEmptyMessage(reader, writer);
         Communication.sendMessage(writer, "Are you an admin\n1. Yes\n2. No");
         boolean isAdmin = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1;
 
@@ -164,7 +168,7 @@ public class Main {
     private static void login(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         Communication.sendMessage(writer, "Your username");
-        String username = Communication.receiveMessage(reader);
+        String username = Communication.receiveNonEmptyMessage(reader, writer);
 
         try (PreparedStatement st = conn.prepareStatement("SELECT id, password FROM AppUser WHERE username=?")) {
             st.setString(1, username);
@@ -175,7 +179,7 @@ public class Main {
                 }
 
                 Communication.sendMessage(writer, "Your password");
-                String password = Communication.receiveMessage(reader);
+                String password = Communication.receiveNonEmptyMessage(reader, writer);
                 if (!rs.getString("password").equals(password)) {
                     Communication.sendMessage(writer, "400. Invalid password");
                     return;
@@ -188,7 +192,7 @@ public class Main {
 
     private static void listAllBooks(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
-        CommonMainLoop.listAvailableBooksByCondition(conn, writer, reader, "", new Binding[] {});
+        CommonMainLoopProcedures.listAvailableBooksByCondition(conn, writer, reader, "", new Binding[] {});
     }
 
     private static void searchBook(Connection conn, BufferedWriter writer, BufferedReader reader)
@@ -202,8 +206,8 @@ public class Main {
             filterOn = "genre";
         }
         Communication.sendMessage(writer, filterOn + " = ?");
-        String filter = Communication.receiveMessage(reader);
-        CommonMainLoop.listAvailableBooksByCondition(
+        String filter = Communication.receiveNonEmptyMessage(reader, writer);
+        CommonMainLoopProcedures.listAvailableBooksByCondition(
                 conn,
                 writer,
                 reader,
@@ -214,9 +218,10 @@ public class Main {
     private static void viewBookDetails(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         Communication.sendMessage(writer, "Book id");
-        String id = Communication.receiveMessage(reader);
+        String id = Communication.receiveNonEmptyMessage(reader, writer);
         try (PreparedStatement st = conn.prepareStatement(
-                CommonMainLoop.buildAvailableBooksQuery("id, title, author, genre, description", "AND id=?"))) {
+                CommonMainLoopProcedures.buildAvailableBooksQuery("id, title, author, genre, description",
+                        "AND id=?"))) {
             st.setString(1, id);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
@@ -230,6 +235,28 @@ public class Main {
                         Description: %s""", rs.getObject("id", UUID.class), rs.getString("title"),
                         rs.getString("genre"), rs.getString("description")));
             }
+        }
+    }
+
+    private static void addBook(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        // title, author, genre, description
+        Communication.sendMessage(writer, "Book title");
+        String title = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Book author");
+        String author = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Book genre");
+        String genre = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Book description");
+        String description = Communication.receiveNonEmptyMessage(reader, writer);
+
+        try (PreparedStatement st = conn
+                .prepareStatement("INSERT INTO Book(title, author, genre, description) VALUES (?, ?, ?, ?)")) {
+            st.setString(1, title);
+            st.setString(2, author);
+            st.setString(3, genre);
+            st.setString(4, description);
+            st.executeUpdate();
         }
     }
 }

@@ -12,7 +12,19 @@ public class Communication {
     }
 
     public static String receiveMessage(BufferedReader reader) throws IOException {
-        return reader.readLine();
+        String msg = reader.readLine();
+        if (msg == null)
+            throw new IOException("Received null message");
+        return msg;
+    }
+
+    public static String receiveNonEmptyMessage(BufferedReader reader, BufferedWriter writer) throws IOException {
+        String msg = receiveMessage(reader);
+        while (msg.equals("")) {
+            sendMessage(writer, "Can't be empty");
+            msg = receiveMessage(reader);
+        }
+        return msg;
     }
 
     public static Integer receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
@@ -26,7 +38,7 @@ public class Communication {
     }
 
     private static Integer parseIntOrNull(String str) {
-        if (str == null || !str.matches("-?\\d+")) {
+        if (!str.matches("-?\\d+")) {
             return null;
         }
         return Integer.parseInt(str);

@@ -13,7 +13,7 @@ interface Binding {
     void apply(PreparedStatement st) throws SQLException;
 }
 
-public class CommonMainLoop {
+public class CommonMainLoopProcedures {
     public static String buildAvailableBooksQuery(String selectAttributes, String extraConditions) {
         return String.format("""
                 SELECT %s FROM Book
