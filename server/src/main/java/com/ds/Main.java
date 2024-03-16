@@ -95,6 +95,7 @@ public class Main {
                         login(conn, session, writer, reader);
                     }
                 } else {
+                    showLoggedInUser(conn, session, writer);
                     Communication.sendMessage(
                             writer,
                             """
@@ -103,7 +104,8 @@ public class Main {
                                     3. View detailed information about book
                                     4. Add a book for lending
                                     5. Stop lending a book
-                                    6. Borrow a book""");
+                                    6. Borrow a book
+                                    7. List borrow requests sent to you""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -123,6 +125,10 @@ public class Main {
                             break;
                         case 6:
                             sendBorrowRequest(conn, session, writer, reader);
+                            break;
+                        case 7:
+                            listReceivedBorrowRequests(conn, session, writer);
+                            break;
                         default:
                             break;
                     }
@@ -130,6 +136,17 @@ public class Main {
             } catch (SQLException e) {
                 Communication.sendMessage(writer, "An internal error has occurred");
                 e.printStackTrace();
+            }
+        }
+    }
+
+    private static void showLoggedInUser(Connection conn, Session session, BufferedWriter writer)
+            throws IOException, SQLException {
+        try (PreparedStatement st = conn.prepareStatement("SELECT username from AppUser where id = ?")) {
+            st.setObject(1, session.id);
+            try (ResultSet rs = st.executeQuery()) {
+                rs.next();
+                Communication.sendMessage(writer, "Logged in as: " + rs.getString("username"));
             }
         }
     }
@@ -296,16 +313,19 @@ public class Main {
     }
 
     private static void sendBorrowRequest(Connection conn, Session session, BufferedWriter writer,
-            BufferedReader reader)
-            throws IOException, SQLException {
+            BufferedReader reader) throws IOException, SQLException {
         Communication.sendMessage(writer, "Book id");
         String id = Communication.receiveNonEmptyMessage(reader, writer);
-        // Ensure book exists
-        try (PreparedStatement st = conn.prepareStatement("SELECT id FROM Book WHERE id = ?")) {
+        // Ensure book exists and it is not owned by the current user
+        try (PreparedStatement st = conn.prepareStatement("SELECT id, lenderId FROM Book WHERE id = ?")) {
             st.setString(1, id);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
                     Communication.sendMessage(writer, "404. No such book");
+                    return;
+                }
+                if (rs.getObject("lenderId", UUID.class).equals(session.id)) {
+                    Communication.sendMessage(writer, "400. Can't borrow a book from yourself.");
                     return;
                 }
             }
@@ -330,6 +350,28 @@ public class Main {
             st.setObject(2, session.id);
             st.executeUpdate();
             Communication.sendMessage(writer, "Borrow request sent");
+        }
+    }
+
+    private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer)
+            throws IOException, SQLException {
+        // id - from: xxxx - A Tale of Two Cities
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT id, Borrower.username AS borrowerUsername, Book.name as bookName
+                FROM BookBorrowRequest
+                LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
+                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId WHERE Book.lenderId = ?""")) {
+            st.setObject(1, session.id);
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    Communication.sendMessage(
+                            writer,
+                            String.format("%s - from: %s - %s",
+                                    rs.getObject("id", UUID.class),
+                                    rs.getString("borrowerUsername"),
+                                    rs.getString("bookName")));
+                }
+            }
         }
     }
 }
