@@ -14,14 +14,18 @@ interface Binding {
 }
 
 public class CommonMainLoop {
+    public static String buildAvailableBooksQuery(String selectAttributes, String extraConditions) {
+        return String.format("""
+                SELECT %s FROM Book
+                LEFT JOIN BookBorrowRequest ON Book.id = BookBorrowRequest.bookId
+                WHERE BookBorrowRequest.status != 'BORROWED' """ + extraConditions,
+                selectAttributes);
+    }
+
     public static void listAvailableBooksByCondition(Connection conn, BufferedWriter writer, BufferedReader reader,
             String extraConditions, Binding[] bindings) throws IOException, SQLException {
         try (PreparedStatement st = conn
-                .prepareStatement("""
-                        SELECT id, title, author, genre
-                        FROM Book
-                        LEFT JOIN BookBorrowRequest ON Book.id = BookBorrowRequest.bookId
-                        WHERE BookBorrowRequest.status != 'BORROWED' """ + extraConditions)) {
+                .prepareStatement(buildAvailableBooksQuery("id, title, author, genre", extraConditions))) {
             for (Binding binding : bindings) {
                 binding.apply(st);
             }
@@ -33,6 +37,5 @@ public class CommonMainLoop {
                 }
             }
         }
-
     }
 }

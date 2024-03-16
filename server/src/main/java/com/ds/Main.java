@@ -99,7 +99,8 @@ public class Main {
                             writer,
                             """
                                     1. List available books
-                                    2. Search for a book""");
+                                    2. Search for a book
+                                    3. View detailed information about book""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -107,6 +108,9 @@ public class Main {
                             break;
                         case 2:
                             searchBook(conn, writer, reader);
+                            break;
+                        case 3:
+                            viewBookDetails(conn, writer, reader);
                             break;
                         default:
                             break;
@@ -205,5 +209,27 @@ public class Main {
                 reader,
                 String.format("AND %s=?", filterOn),
                 new Binding[] { (st) -> st.setString(1, filter) });
+    }
+
+    private static void viewBookDetails(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "Book id");
+        String id = Communication.receiveMessage(reader);
+        try (PreparedStatement st = conn.prepareStatement(
+                CommonMainLoop.buildAvailableBooksQuery("id, title, author, genre, description", "AND id=?"))) {
+            st.setString(1, id);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    Communication.sendMessage(writer, "404. No such book");
+                    return;
+                }
+                Communication.sendMessage(writer, String.format("""
+                        ID: %s
+                        Title: %s
+                        Genre: %s
+                        Description: %s""", rs.getObject("id", UUID.class), rs.getString("title"),
+                        rs.getString("genre"), rs.getString("description")));
+            }
+        }
     }
 }
