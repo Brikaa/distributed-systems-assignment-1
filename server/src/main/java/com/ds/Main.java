@@ -34,18 +34,15 @@ public class Main {
         // Set up server socket
         ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")));
 
-        // Graceful shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Gracefully stopping the server...");
             try {
+                System.out.println("Gracefully stopping the server...");
                 socket.close();
-            } catch (IOException e) {
-                System.out.println("Failed to close the server socket: " + e);
-            }
-            try {
                 conn.close();
+            } catch (IOException e) {
+                System.out.println("Failed to close socket: " + e);
             } catch (SQLException e) {
-                System.out.println("Failed to close the database connection: " + e);
+                System.out.println("Failed to close DB connection: " + e);
             }
         }));
 
@@ -68,6 +65,7 @@ public class Main {
                 } finally {
                     try {
                         client.close();
+                        System.out.println("Closed the client connection");
                     } catch (IOException e) {
                         System.out.println("Failed to close connection for client: " + e);
                     }
@@ -159,7 +157,7 @@ public class Main {
                 Communication.sendMessage(writer, "Your password");
                 String password = Communication.receiveMessage(reader);
                 if (!rs.getString("password").equals(password)) {
-                    System.out.println("Invalid password");
+                    Communication.sendMessage(writer, "400. Invalid password");
                     return;
                 }
 

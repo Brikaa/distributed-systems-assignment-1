@@ -18,7 +18,7 @@ public class Communication {
     public static Integer receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
             throws IOException {
         Integer response = parseIntOrNull(receiveMessage(reader));
-        while (response == null) {
+        while (response == null || response < start || response > end) {
             sendMessage(writer, "Invalid choice");
             response = parseIntOrNull(receiveMessage(reader));
         }
@@ -26,7 +26,7 @@ public class Communication {
     }
 
     private static Integer parseIntOrNull(String str) {
-        if (!str.matches("-?\\d+")) {
+        if (str == null || !str.matches("-?\\d+")) {
             return null;
         }
         return Integer.parseInt(str);
