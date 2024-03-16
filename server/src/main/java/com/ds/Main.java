@@ -102,7 +102,8 @@ public class Main {
                                     2. Search for a book
                                     3. View detailed information about book
                                     4. Add a book for lending
-                                    5. Stop lending a book""");
+                                    5. Stop lending a book
+                                    6. Borrow a book""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -120,6 +121,8 @@ public class Main {
                         case 5:
                             removeBook(conn, session, writer, reader);
                             break;
+                        case 6:
+                            sendBorrowRequest(conn, session, writer, reader);
                         default:
                             break;
                     }
@@ -224,7 +227,8 @@ public class Main {
         Communication.sendMessage(writer, "Book id");
         String id = Communication.receiveNonEmptyMessage(reader, writer);
         try (PreparedStatement st = conn.prepareStatement(
-                CommonMainLoopProcedures.buildAvailableBooksQuery("id, title, author, genre, description",
+                CommonMainLoopProcedures.buildAvailableBooksQuery(
+                        "Book.id, Book.title, Book.author, Book.genre, Book.description",
                         "AND id=?"))) {
             st.setString(1, id);
             try (ResultSet rs = st.executeQuery()) {
@@ -271,7 +275,8 @@ public class Main {
         Communication.sendMessage(writer, "Book id");
         String id = Communication.receiveNonEmptyMessage(reader, writer);
         try (PreparedStatement st = conn
-                .prepareStatement(CommonMainLoopProcedures.buildAvailableBooksQuery("id", "AND Book.lenderId = ?"))) {
+                .prepareStatement(
+                        CommonMainLoopProcedures.buildAvailableBooksQuery("Book.id", "AND Book.lenderId = ?"))) {
             st.setObject(1, session.id);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
@@ -287,6 +292,44 @@ public class Main {
             if (affected == 0) {
                 Communication.sendMessage(writer, "Could not delete this book");
             }
+        }
+    }
+
+    private static void sendBorrowRequest(Connection conn, Session session, BufferedWriter writer,
+            BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "Book id");
+        String id = Communication.receiveNonEmptyMessage(reader, writer);
+        // Ensure book exists
+        try (PreparedStatement st = conn.prepareStatement("SELECT id FROM Book WHERE id = ?")) {
+            st.setString(1, id);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    Communication.sendMessage(writer, "404. No such book");
+                    return;
+                }
+            }
+        }
+
+        // Ensure there is no borrow request with status borrowed on this book
+        try (PreparedStatement st = conn
+                .prepareStatement("SELECT id from BookBorrowRequest WHERE bookId = ? AND status = 'BORROWED'")) {
+            st.setString(1, id);
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    Communication.sendMessage(writer, "400. This book is already borrowed");
+                    return;
+                }
+            }
+        }
+
+        // Insert BookBorrowRequest
+        try (PreparedStatement st = conn.prepareStatement(
+                "INSERT INTO BookBorrowRequest(bookId, borrowedId, status) VALUES (?, ?, 'PENDING')")) {
+            st.setString(1, id);
+            st.setObject(2, session.id);
+            st.executeUpdate();
+            Communication.sendMessage(writer, "Borrow request sent");
         }
     }
 }
