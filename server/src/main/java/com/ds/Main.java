@@ -95,10 +95,21 @@ public class Main {
                         login(conn, session, writer, reader);
                     }
                 } else {
-                    Communication.sendMessage(writer, "1. Logout");
+                    Communication.sendMessage(
+                            writer,
+                            """
+                                    1. List available books
+                                    2. Search for a book""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
-                    if (choice == 1) {
-                        session.id = null;
+                    switch (choice) {
+                        case 1:
+                            listAllBooks(conn, writer, reader);
+                            break;
+                        case 2:
+                            searchBook(conn, writer, reader);
+                            break;
+                        default:
+                            break;
                     }
                 }
             } catch (SQLException e) {
@@ -171,4 +182,28 @@ public class Main {
         }
     }
 
+    private static void listAllBooks(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        CommonMainLoop.listAvailableBooksByCondition(conn, writer, reader, "", new Binding[] {});
+    }
+
+    private static void searchBook(Connection conn, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(writer, "1. By title\n2. By author\n3. By genre");
+        Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
+        String filterOn = "title";
+        if (choice == 2) {
+            filterOn = "author";
+        } else if (choice == 3) {
+            filterOn = "genre";
+        }
+        Communication.sendMessage(writer, filterOn + " = ?");
+        String filter = Communication.receiveMessage(reader);
+        CommonMainLoop.listAvailableBooksByCondition(
+                conn,
+                writer,
+                reader,
+                String.format("AND %s=?", filterOn),
+                new Binding[] { (st) -> st.setString(1, filter) });
+    }
 }

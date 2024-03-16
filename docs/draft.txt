@@ -41,6 +41,7 @@
 
 - Extra points
   - Graceful exiting
+    - Client also handles server close
   - try-with-resources to auto-close resources
 
 - Nice to have
