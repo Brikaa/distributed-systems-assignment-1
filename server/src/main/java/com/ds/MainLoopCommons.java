@@ -57,10 +57,12 @@ public class MainLoopCommons {
                                     rs.getString("author"),
                                     rs.getString("genre")));
                 }
+                if (i == 0)
+                    return;
                 Communication.sendMessage(writer, """
                         1. View detailed information about book
                         2. Send a borrow request
-                        3. Exit""");
+                        3. Back""");
                 int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
                 if (choice != 3) {
                     Communication.sendMessage(writer, "Enter the number of the book");
@@ -68,7 +70,7 @@ public class MainLoopCommons {
                     if (choice == 1) {
                         Communication.sendMessage(writer, bookDetails.get(bookIndex));
                     } else {
-                        sendBorrowRequest(conn, writer, reader, sessionId, bookIds.get(bookIndex));
+                        sendBorrowRequest(conn, writer, sessionId, bookIds.get(bookIndex));
                     }
                 }
             }
@@ -82,8 +84,8 @@ public class MainLoopCommons {
         }
     }
 
-    private static void sendBorrowRequest(Connection conn, BufferedWriter writer,
-            BufferedReader reader, UUID sessionId, UUID bookId) throws IOException, SQLException {
+    private static void sendBorrowRequest(Connection conn, BufferedWriter writer, UUID sessionId, UUID bookId)
+            throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement(
                 "INSERT INTO BookBorrowRequest(bookId, borrowerId, status) VALUES (?, ?, 'PENDING')")) {
             MainLoopCommons.applyBindings(st, List.of(
@@ -94,7 +96,7 @@ public class MainLoopCommons {
         }
     }
 
-    public static void listBorrowRequestsByCondition(Connection conn, Session session, BufferedWriter writer,
+    public static void listBorrowRequestsByCondition(Connection conn, BufferedWriter writer,
             String condition, List<Binding> bindings)
             throws IOException, SQLException {
         // id - from: xxxx - A Tale of Two Cities

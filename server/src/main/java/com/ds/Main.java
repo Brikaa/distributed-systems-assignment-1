@@ -12,6 +12,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -104,7 +105,6 @@ public class Main {
                                     2. Search for a book (includes borrowing, details)
                                     3. Add a book for lending
                                     4. List lent books (includes removing)
-                                    4. Stop lending a book
                                     5. List borrow requests sent to you
                                     6. Accept/reject a borrow request
                                     7. List borrow requests you sent""");
@@ -119,16 +119,16 @@ public class Main {
                         case 3:
                             addBook(conn, session, writer, reader);
                             break;
-                        case 5:
-                            removeBook(conn, session, writer, reader);
+                        case 4:
+                            listLentBooks(conn, session, writer, reader);
                             break;
-                        case 6:
+                        case 5:
                             listReceivedBorrowRequests(conn, session, writer);
                             break;
-                        case 7:
+                        case 6:
                             acceptOrRejectBorrowRequest(conn, session, writer, reader);
                             break;
-                        case 8:
+                        case 7:
                             listSentBorrowRequests(conn, session, writer);
                             break;
                         default:
@@ -225,8 +225,8 @@ public class Main {
                 session.id,
                 writer,
                 reader,
-                "AND Book.lenderId != ?",
-                List.of((i, st) -> st.setObject(i, session.id)));
+                "",
+                List.of());
     }
 
     private static void searchBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
@@ -246,8 +246,8 @@ public class Main {
                 session.id,
                 writer,
                 reader,
-                String.format("AND %s=? AND Book.lenderId != ?", filterOn),
-                List.of((i, st) -> st.setString(i, filter), (i, st) -> st.setObject(i, session.id)));
+                String.format("AND %s=?", filterOn),
+                List.of((i, st) -> st.setString(i, filter)));
     }
 
     private static void addBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
@@ -277,32 +277,51 @@ public class Main {
         }
     }
 
-    private static void removeBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+    private static void listLentBooks(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
-        Communication.sendMessage(writer, "Book id");
-        String id = Communication.receiveNonEmptyMessage(reader, writer);
-        // Ensure it is not borrowed and that you own it
-        try (PreparedStatement st = conn
-                .prepareStatement(
-                        MainLoopCommons.buildAvailableBooksQuery("Book.id", "AND Book.lenderId = ?"))) {
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT Book.id, Book.title, Book.author, Book.genre FROM Book
+                WHERE Book.lenderId = ?""")) {
             MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+            ArrayList<UUID> bookIds = new ArrayList<>();
+            int i = 0;
             try (ResultSet rs = st.executeQuery()) {
-                if (!rs.next()) {
-                    Communication.sendMessage(writer, "Can't stop lending this book");
-                    return;
+                while (rs.next()) {
+                    bookIds.add(rs.getObject("id", UUID.class));
+                    Communication.sendMessage(writer,
+                            String.format(
+                                    "%s. %s - By %s - %s",
+                                    ++i,
+                                    rs.getString("title"),
+                                    rs.getString("author"),
+                                    rs.getString("genre")));
+
                 }
             }
+            if (i == 0)
+                return;
+            Communication.sendMessage(writer, "1. Delete book\n2. Back");
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
+            if (choice == 1) {
+                Communication.sendMessage(writer, "Enter the book number");
+                int bookIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
+                removeBook(conn, session, writer, reader, bookIds.get(bookIndex));
+            }
         }
+    }
+
+    private static void removeBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader,
+            UUID bookId)
+            throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("DELETE FROM Book WHERE id = ?")) {
-            MainLoopCommons.applyBindings(st,
-                    List.of((i, s) -> s.setString(i, id), (i, s) -> s.setObject(i, session.id)));
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, bookId)));
             st.executeUpdate();
         }
     }
 
     private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer)
             throws IOException, SQLException {
-        MainLoopCommons.listBorrowRequestsByCondition(conn, session, writer, "Book.lenderId = ?",
+        MainLoopCommons.listBorrowRequestsByCondition(conn, writer, "Book.lenderId = ?",
                 List.of((i, st) -> st.setObject(i, session.id)));
     }
 
@@ -351,7 +370,6 @@ public class Main {
             throws IOException, SQLException {
         MainLoopCommons.listBorrowRequestsByCondition(
                 conn,
-                session,
                 writer,
                 "BookBorrowRequest.borrowerId = ?",
                 List.of((i, st) -> st.setObject(i, session.id)));
