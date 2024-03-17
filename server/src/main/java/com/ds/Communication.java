@@ -27,7 +27,7 @@ public class Communication {
         return msg;
     }
 
-    public static Integer receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
+    public static int receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
             throws IOException {
         Integer response = parseIntOrNull(receiveMessage(reader));
         while (response == null || response < start || response > end) {
