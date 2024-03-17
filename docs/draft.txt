@@ -49,5 +49,6 @@
 - Nice to have
   - Abstraction for menu choices
   - Real-time chat
-  - DB enums as constants in code
-  - Abstraction for setting PreparedStatement parameters
+  - DB enums as constants in code?
+  - Abstraction for setting PreparedStatement parameters?
+  - Received/sent borrow requests only show receiver/lender?

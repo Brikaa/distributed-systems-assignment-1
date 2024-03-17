@@ -106,7 +106,8 @@ public class Main {
                                     5. Stop lending a book
                                     6. Borrow a book
                                     7. List borrow requests sent to you
-                                    8. Accept/reject a borrow request""");
+                                    8. Accept/reject a borrow request
+                                    9. List borrow requests you sent""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -132,6 +133,9 @@ public class Main {
                             break;
                         case 8:
                             acceptOrRejectBorrowRequest(conn, session, writer, reader);
+                            break;
+                        case 9:
+                            listSentBorrowRequests(conn, session, writer);
                             break;
                         default:
                             break;
@@ -220,7 +224,7 @@ public class Main {
 
     private static void listAllBooks(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
-        CommonMainLoopProcedures.listAvailableBooksByCondition(conn, writer, reader, "", new Binding[] {});
+        MainLoopCommons.listAvailableBooksByCondition(conn, writer, reader, "", new Binding[] {});
     }
 
     private static void searchBook(Connection conn, BufferedWriter writer, BufferedReader reader)
@@ -235,7 +239,7 @@ public class Main {
         }
         Communication.sendMessage(writer, filterOn + " = ?");
         String filter = Communication.receiveNonEmptyMessage(reader, writer);
-        CommonMainLoopProcedures.listAvailableBooksByCondition(
+        MainLoopCommons.listAvailableBooksByCondition(
                 conn,
                 writer,
                 reader,
@@ -248,7 +252,7 @@ public class Main {
         Communication.sendMessage(writer, "Book id");
         String id = Communication.receiveNonEmptyMessage(reader, writer);
         try (PreparedStatement st = conn.prepareStatement(
-                CommonMainLoopProcedures.buildAvailableBooksQuery(
+                MainLoopCommons.buildAvailableBooksQuery(
                         "Book.id, Book.title, Book.author, Book.genre, Book.description",
                         "AND id=?"))) {
             st.setString(1, id);
@@ -298,7 +302,7 @@ public class Main {
         // Ensure it is not borrowed and that you own it
         try (PreparedStatement st = conn
                 .prepareStatement(
-                        CommonMainLoopProcedures.buildAvailableBooksQuery("Book.id", "AND Book.lenderId = ?"))) {
+                        MainLoopCommons.buildAvailableBooksQuery("Book.id", "AND Book.lenderId = ?"))) {
             st.setObject(1, session.id);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
@@ -357,24 +361,8 @@ public class Main {
 
     private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer)
             throws IOException, SQLException {
-        // id - from: xxxx - A Tale of Two Cities
-        try (PreparedStatement st = conn.prepareStatement("""
-                SELECT id, Borrower.username AS borrowerUsername, Book.name as bookName
-                FROM BookBorrowRequest
-                LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
-                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId WHERE Book.lenderId = ?""")) {
-            st.setObject(1, session.id);
-            try (ResultSet rs = st.executeQuery()) {
-                while (rs.next()) {
-                    Communication.sendMessage(
-                            writer,
-                            String.format("%s - from: %s - %s",
-                                    rs.getObject("id", UUID.class),
-                                    rs.getString("borrowerUsername"),
-                                    rs.getString("bookName")));
-                }
-            }
-        }
+        MainLoopCommons.listBorrowRequestsByCondition(conn, session, writer, "Book.lenderId = ?",
+                new Binding[] { (st) -> st.setObject(1, session.id) });
     }
 
     private static void acceptOrRejectBorrowRequest(Connection conn, Session session, BufferedWriter writer,
@@ -413,5 +401,16 @@ public class Main {
                         "Accepted the borrow request, you can now chat with user of username: " + borrowerUsername);
             }
         }
+    }
+
+    private static void listSentBorrowRequests(Connection conn, Session session, BufferedWriter writer)
+            throws IOException, SQLException {
+        MainLoopCommons.listBorrowRequestsByCondition(
+                conn,
+                session,
+                writer,
+                "BookBorrowRequest.borrowerId = ?",
+                new Binding[] { (st) -> st.setObject(1, session.id) });
+
     }
 }
