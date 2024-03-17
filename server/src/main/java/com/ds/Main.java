@@ -105,10 +105,9 @@ public class Main {
                                     2. Search for a book (includes borrowing, details)
                                     3. Add a book for lending
                                     4. List lent books (includes removing)
-                                    5. List borrow requests sent to you
-                                    6. Accept/reject a borrow request
-                                    7. List borrow requests you sent""");
-                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
+                                    5. List borrow requests sent to you (includes accepting, rejecting, messaging)
+                                    6. List borrow requests you sent (includes messaging)""");
+                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 6);
                     switch (choice) {
                         case 1:
                             listAllBooks(conn, session, writer, reader);
@@ -123,13 +122,10 @@ public class Main {
                             listLentBooks(conn, session, writer, reader);
                             break;
                         case 5:
-                            listReceivedBorrowRequests(conn, session, writer);
+                            listReceivedBorrowRequests(conn, session, writer, reader);
                             break;
                         case 6:
-                            acceptOrRejectBorrowRequest(conn, session, writer, reader);
-                            break;
-                        case 7:
-                            listSentBorrowRequests(conn, session, writer);
+                            listSentBorrowRequests(conn, session, writer, reader);
                             break;
                         default:
                             break;
@@ -319,58 +315,22 @@ public class Main {
         }
     }
 
-    private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer)
-            throws IOException, SQLException {
-        MainLoopCommons.listBorrowRequestsByCondition(conn, writer, "Book.lenderId = ?",
-                List.of((i, st) -> st.setObject(i, session.id)));
-    }
-
-    private static void acceptOrRejectBorrowRequest(Connection conn, Session session, BufferedWriter writer,
+    private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer,
             BufferedReader reader) throws IOException, SQLException {
-        Communication.sendMessage(writer, "Request id");
-        String id = Communication.receiveNonEmptyMessage(reader, writer);
-        String borrowerUsername = null;
-
-        // Ensure this request exists and is addressed to the user
-        try (PreparedStatement st = conn.prepareStatement("""
-                SELECT BookBorrowRequest.borrowerId, Borrower.username AS borrowerUsername
-                FROM BookBorrowRequest
-                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
-                LEFT JOIN AppUser AS Borrower ON AppUser.id = BookBorrowRequest.borrowerId
-                WHERE BookBorrowRequest.id = ? AND Book.lenderId = ?""")) {
-
-            MainLoopCommons.applyBindings(st, List.of(
-                    (i, s) -> s.setString(i, id),
-                    (i, s) -> s.setObject(i, session.id)));
-            try (ResultSet rs = st.executeQuery()) {
-                if (!rs.next()) {
-                    Communication.sendMessage(writer, "Can't accept/reject such a request");
-                    return;
-                }
-                borrowerUsername = rs.getString(borrowerUsername);
-            }
-        }
-
-        Communication.sendMessage(writer, "1. Accept\n2. Reject");
-        String status = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1 ? "BORROWED" : "REJECTED";
-
-        try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
-            MainLoopCommons.applyBindings(st, List.of(
-                    (i, s) -> s.setString(i, status),
-                    (i, s) -> s.setString(i, id)));
-            st.executeUpdate();
-            if (status == "BORROWED") {
-                Communication.sendMessage(writer,
-                        "Accepted the borrow request, you can now chat with user of username: " + borrowerUsername);
-            }
-        }
-    }
-
-    private static void listSentBorrowRequests(Connection conn, Session session, BufferedWriter writer)
-            throws IOException, SQLException {
         MainLoopCommons.listBorrowRequestsByCondition(
                 conn,
                 writer,
+                reader,
+                "Book.lenderId = ?",
+                List.of((i, st) -> st.setObject(i, session.id)));
+    }
+
+    private static void listSentBorrowRequests(Connection conn, Session session, BufferedWriter writer,
+            BufferedReader reader) throws IOException, SQLException {
+        MainLoopCommons.listBorrowRequestsByCondition(
+                conn,
+                writer,
+                reader,
                 "BookBorrowRequest.borrowerId = ?",
                 List.of((i, st) -> st.setObject(i, session.id)));
     }
