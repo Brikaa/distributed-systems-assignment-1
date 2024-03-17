@@ -105,7 +105,8 @@ public class Main {
                                     4. Add a book for lending
                                     5. Stop lending a book
                                     6. Borrow a book
-                                    7. List borrow requests sent to you""");
+                                    7. List borrow requests sent to you
+                                    8. Accept/reject a borrow request""");
                     Integer choice = Communication.receiveMessageInRange(reader, writer, 1, 1);
                     switch (choice) {
                         case 1:
@@ -128,6 +129,9 @@ public class Main {
                             break;
                         case 7:
                             listReceivedBorrowRequests(conn, session, writer);
+                            break;
+                        case 8:
+                            acceptOrRejectBorrowRequest(conn, session, writer, reader);
                             break;
                         default:
                             break;
@@ -291,24 +295,22 @@ public class Main {
             throws IOException, SQLException {
         Communication.sendMessage(writer, "Book id");
         String id = Communication.receiveNonEmptyMessage(reader, writer);
+        // Ensure it is not borrowed and that you own it
         try (PreparedStatement st = conn
                 .prepareStatement(
                         CommonMainLoopProcedures.buildAvailableBooksQuery("Book.id", "AND Book.lenderId = ?"))) {
             st.setObject(1, session.id);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
-                    Communication.sendMessage(writer, "Can't delete this book");
+                    Communication.sendMessage(writer, "Can't stop lending this book");
                     return;
                 }
             }
         }
-        try (PreparedStatement st = conn.prepareStatement("DELETE FROM Book WHERE id = ? AND lenderId = ?")) {
+        try (PreparedStatement st = conn.prepareStatement("DELETE FROM Book WHERE id = ?")) {
             st.setString(1, id);
             st.setObject(2, session.id);
-            int affected = st.executeUpdate();
-            if (affected == 0) {
-                Communication.sendMessage(writer, "Could not delete this book");
-            }
+            st.executeUpdate();
         }
     }
 
@@ -371,6 +373,44 @@ public class Main {
                                     rs.getString("borrowerUsername"),
                                     rs.getString("bookName")));
                 }
+            }
+        }
+    }
+
+    private static void acceptOrRejectBorrowRequest(Connection conn, Session session, BufferedWriter writer,
+            BufferedReader reader) throws IOException, SQLException {
+        Communication.sendMessage(writer, "Request id");
+        String id = Communication.receiveNonEmptyMessage(reader, writer);
+        String borrowerUsername = null;
+
+        // Ensure this request exists and is addressed to the user
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT BookBorrowRequest.borrowerId, Borrower.username AS borrowerUsername
+                FROM BookBorrowRequest
+                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
+                LEFT JOIN AppUser AS Borrower ON AppUser.id = BookBorrowRequest.borrowerId
+                WHERE BookBorrowRequest.id = ? AND Book.lenderId = ?""")) {
+            st.setString(1, id);
+            st.setObject(2, session.id);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    Communication.sendMessage(writer, "Can't accept/reject such a request");
+                    return;
+                }
+                borrowerUsername = rs.getString(borrowerUsername);
+            }
+        }
+
+        Communication.sendMessage(writer, "1. Accept\n2. Reject");
+        String status = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1 ? "BORROWED" : "REJECTED";
+
+        try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
+            st.setString(1, status);
+            st.setString(2, id);
+            st.executeUpdate();
+            if (status == "BORROWED") {
+                Communication.sendMessage(writer,
+                        "Accepted the borrow request, you can now chat with user of username: " + borrowerUsername);
             }
         }
     }
