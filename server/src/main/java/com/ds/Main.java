@@ -416,10 +416,9 @@ public class Main {
     }
 
     private static void updateBorrowRequestStatus(Connection conn, UUID requestId, String status) throws SQLException {
-        try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
-            MainLoopCommons.applyBindings(st, List.of(
-                    (i, s) -> s.setString(i, status),
-                    (i, s) -> s.setObject(i, requestId)));
+        try (PreparedStatement st = conn
+                .prepareStatement(String.format("UPDATE BookBorrowRequest SET status = '%s' WHERE id = ?", status))) {
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, requestId)));
             st.executeUpdate();
         }
     }

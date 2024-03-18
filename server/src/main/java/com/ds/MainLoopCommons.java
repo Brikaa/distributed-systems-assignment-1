@@ -111,7 +111,7 @@ public class MainLoopCommons {
         }
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT senderId, body FROM Message
-                (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
+                WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
                 ORDER BY timestamp ASC""")) {
             applyBindings(st, List.of(
                     (i, s) -> s.setObject(i, sourceId),
