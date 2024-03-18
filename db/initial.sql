@@ -29,5 +29,6 @@ CREATE TABLE Message (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   senderId UUID NOT NULL REFERENCES AppUser(id) ON DELETE CASCADE,
   receiverId UUID NOT NULL REFERENCES AppUser(id) ON DELETE CASCADE,
+  timestamp TIMESTAMP NOT NULL,
   body TEXT
 );

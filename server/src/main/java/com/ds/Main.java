@@ -105,8 +105,8 @@ public class Main {
                                     2. Search for a book (includes borrowing, details)
                                     3. Add a book for lending
                                     4. List lent books (includes removing)
-                                    5. List borrow requests sent to you (includes accepting, rejecting, messaging)
-                                    6. List borrow requests you sent (includes messaging)""");
+                                    5. List borrow requests sent to you (includes accepting, rejecting, chat)
+                                    6. List borrow requests you sent (includes chat)""");
                     int choice = Communication.receiveMessageInRange(reader, writer, 1, 6);
                     switch (choice) {
                         case 1:
@@ -317,21 +317,120 @@ public class Main {
 
     private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer,
             BufferedReader reader) throws IOException, SQLException {
-        MainLoopCommons.listBorrowRequestsByCondition(
-                conn,
-                writer,
-                reader,
-                "Book.lenderId = ?",
-                List.of((i, st) -> st.setObject(i, session.id)));
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT
+                    id,
+                    status,
+                    Borrower.id AS borrowerId,
+                    Borrower.username AS borrowerUsername,
+                    Book.name as bookName
+                FROM BookBorrowRequest
+                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
+                LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
+                WHERE Book.lenderId = ?""")) {
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+
+            ArrayList<UUID> requestIds = new ArrayList<>();
+            ArrayList<UUID> userIds = new ArrayList<>();
+            ArrayList<String> usernames = new ArrayList<>();
+            int i = 0;
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    requestIds.add(rs.getObject("id", UUID.class));
+                    userIds.add(rs.getObject("borrowerId", UUID.class));
+                    String borrowerUsername = rs.getString("borrowerUsername");
+                    usernames.add(borrowerUsername);
+                    Communication.sendMessage(
+                            writer,
+                            String.format("%s. from: %s - %s (%s)",
+                                    ++i,
+                                    rs.getString(borrowerUsername),
+                                    rs.getString("bookName"),
+                                    rs.getString("status")));
+                }
+            }
+            if (i == 0)
+                return;
+            Communication.sendMessage(writer, "1. Accept request\n2. Reject request\n3. Chat with user\n3. Back");
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
+            if (choice != 4) {
+                Communication.sendMessage(writer, "Enter the request number");
+                int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
+                if (choice == 1 || choice == 2) {
+                    String status = choice == 1 ? "BORROWED" : "REJECTED";
+                    updateBorrowRequestStatus(conn, requestIds.get(requestIndex), status);
+                } else {
+                    MainLoopCommons.chatWithUser(
+                            conn,
+                            writer,
+                            reader,
+                            session.id,
+                            userIds.get(requestIndex),
+                            usernames.get(requestIndex));
+                }
+            }
+        }
+    }
+
+    private static void updateBorrowRequestStatus(Connection conn, UUID requestId, String status)
+            throws IOException, SQLException {
+        try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
+            MainLoopCommons.applyBindings(st, List.of(
+                    (i, s) -> s.setString(i, status),
+                    (i, s) -> s.setObject(i, requestId)));
+            st.executeUpdate();
+        }
     }
 
     private static void listSentBorrowRequests(Connection conn, Session session, BufferedWriter writer,
             BufferedReader reader) throws IOException, SQLException {
-        MainLoopCommons.listBorrowRequestsByCondition(
-                conn,
-                writer,
-                reader,
-                "BookBorrowRequest.borrowerId = ?",
-                List.of((i, st) -> st.setObject(i, session.id)));
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT
+                    id,
+                    status,
+                    Lender.id AS lenderId,
+                    Lender.username AS lenderUsername,
+                    Book.name as bookName
+                FROM BookBorrowRequest
+                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
+                LEFT JOIN AppUser AS Lender ON Lender.id = BookBorrowRequest.lenderId
+                WHERE BookBorrowRequest.borrowerId = ?""")) {
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+
+            ArrayList<UUID> requestIds = new ArrayList<>();
+            ArrayList<UUID> userIds = new ArrayList<>();
+            ArrayList<String> usernames = new ArrayList<>();
+            int i = 0;
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    requestIds.add(rs.getObject("id", UUID.class));
+                    userIds.add(rs.getObject("lenderId", UUID.class));
+                    String lenderUsername = rs.getString("lenderUsername");
+                    usernames.add(lenderUsername);
+                    Communication.sendMessage(
+                            writer,
+                            String.format("%s. to: %s - %s (%s)",
+                                    ++i,
+                                    lenderUsername,
+                                    rs.getString("bookName"),
+                                    rs.getString("status")));
+                }
+            }
+            if (i == 0)
+                return;
+            Communication.sendMessage(writer, "1. Chat with user\n2. Back");
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
+            if (choice != 2) {
+                Communication.sendMessage(writer, "Enter the request number");
+                int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
+                MainLoopCommons.chatWithUser(
+                        conn,
+                        writer,
+                        reader,
+                        session.id,
+                        userIds.get(requestIndex),
+                        usernames.get(requestIndex));
+            }
+        }
     }
 }

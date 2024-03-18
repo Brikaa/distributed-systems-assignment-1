@@ -49,7 +49,6 @@
 - Nice to have
   - Abstraction for menu choices
   - Real-time chat
-  - Don't let users type ids explicitly. Use menu choices
   - DB enums as constants in code?
-  - Abstraction for setting PreparedStatement parameters?
   - Received/sent borrow requests only show receiver/lender?
+  - Hide repeated parameters as class members?

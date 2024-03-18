@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -95,57 +96,46 @@ public class MainLoopCommons {
         }
     }
 
-    public static void listBorrowRequestsByCondition(Connection conn, BufferedWriter writer, BufferedReader reader,
-            String condition, List<Binding> bindings)
-            throws IOException, SQLException {
-        // id - from: xxxx - A Tale of Two Cities
+    public static void chatWithUser(Connection conn, BufferedWriter writer, BufferedReader reader, UUID sourceId,
+            UUID destinationId, String destinationUsername) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
-                SELECT
-                    id,
-                    status,
-                    Borrower.username AS borrowerUsername,
-                    Lender.username AS lenderUsername,
-                    Book.name as bookName
-                FROM BookBorrowRequest
-                LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
-                LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
-                LEFT JOIN AppUser AS Lender ON Lender.id = Book.lenderId
-                WHERE """ + condition)) {
-            applyBindings(st, bindings);
-
-            ArrayList<UUID> requestIds = new ArrayList<>();
-            int i = 0;
+                SELECT senderId, body FROM Message
+                (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
+                ORDER BY timestamp ASC""")) {
+            applyBindings(st, List.of(
+                    (i, s) -> s.setObject(i, sourceId),
+                    (i, s) -> s.setObject(i, destinationId),
+                    (i, s) -> s.setObject(i, destinationId),
+                    (i, s) -> s.setObject(i, sourceId)));
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
-                    requestIds.add(rs.getObject("id", UUID.class));
-                    Communication.sendMessage(
-                            writer,
-                            String.format("%s. requester: %s - lender: %s - %s (%s)",
-                                    ++i,
-                                    rs.getString("borrowerUsername"),
-                                    rs.getString("lenderUsername"),
-                                    rs.getString("bookName"),
-                                    rs.getString("status")));
+                    UUID senderId = rs.getObject("senderId", UUID.class);
+                    String sourceName = senderId.equals(sourceId) ? "" : (destinationUsername + ": ");
+                    Communication.sendMessage(writer, sourceName + rs.getString("body"));
                 }
             }
-            if (i == 0)
-                return;
-            Communication.sendMessage(writer, "1. Accept request\n2. Reject request\n3. Back");
-            int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
-            if (choice != 3) {
-                Communication.sendMessage(writer, "Enter the request number");
-                int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
-                updateBorrowRequestStatus(conn, requestIds.get(requestIndex), choice == 1 ? "BORROWED" : "REJECTED");
+        }
+        while (true) {
+            Communication.sendMessage(writer, "1. Send message\n2. Back");
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
+            if (choice == 2) {
+                break;
             }
+            Communication.sendMessage(writer, "Message");
+            String message = Communication.receiveNonEmptyMessage(reader, writer);
+            sendMessage(conn, sourceId, destinationId, message);
         }
     }
 
-    private static void updateBorrowRequestStatus(Connection conn, UUID requestId, String status)
-            throws IOException, SQLException {
-        try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
-            MainLoopCommons.applyBindings(st, List.of(
-                    (i, s) -> s.setString(i, status),
-                    (i, s) -> s.setObject(i, requestId)));
+    private static void sendMessage(Connection conn, UUID sourceId, UUID destinationId, String body)
+            throws SQLException {
+        try (PreparedStatement st = conn
+                .prepareStatement("Insert INTO Message(senderId, receiverId, body, timestamp) VALUES (?, ?, ?, ?)")) {
+            applyBindings(st, List.of(
+                    (i, s) -> s.setObject(i, sourceId),
+                    (i, s) -> s.setObject(i, destinationId),
+                    (i, s) -> s.setString(i, body),
+                    (i, s) -> s.setTimestamp(i, new Timestamp(System.currentTimeMillis()))));
             st.executeUpdate();
         }
     }
