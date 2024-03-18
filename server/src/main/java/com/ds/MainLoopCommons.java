@@ -98,7 +98,8 @@ public class MainLoopCommons {
     public static void chatWithUser(Connection conn, BufferedWriter writer, BufferedReader reader, UUID sourceId,
             UUID destinationId, String destinationUsername, String requestStatus) throws IOException, SQLException {
         if (requestStatus != "BORROWED") {
-            Communication.sendMessage(writer, "You are not lending this user any books (status not 'BORROWED')");
+            Communication.sendMessage(writer,
+                    "400. This request does not lend this user any books (status not 'BORROWED')");
             return;
         }
         try (PreparedStatement st = conn.prepareStatement("""

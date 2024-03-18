@@ -45,6 +45,7 @@
   - Graceful exiting
     - Client also handles server close
   - try-with-resources to auto-close resources
+  - Validations everywhere
 
 - Maybe and maybe not problems
   - Abstraction for menu choices

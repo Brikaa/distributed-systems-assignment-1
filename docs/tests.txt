@@ -1,10 +1,3 @@
-- Test client disconnects at any time
-- Test register
-- Test register existing username
-- Test login
-- Test login invalid username
-- Test login invalid password
-
 - c1
   - Register c1:c1123
     - Success
@@ -66,8 +59,39 @@
     - rb3
 - c3
   - List borrow requests
-    - rb1, rb2, rb3
+    - rb1 (pending), rb2 (pending), rb3 (pending)
   - List borrowed books
     - None
-- c1
+- c2
+  - Chat with user of request rb3
+    - Error, not borrowed
   - Accept rb3
+  - Accept rb3
+    - Error, not pending
+  - Chat with user of request rb3
+    - No messages
+  - Send message m1rb3
+    - Success
+- c3
+  - List borrowed books
+    - b3
+- c1
+  - Reject rb1
+  - Chat with user of rb1
+    - Error, not borrowed
+  - Chat with user of rb3 (it is the same user but a different request)
+    - m1rb3
+  - Send message m2rb3
+  - Chat with user of rb3
+    - m1rb3, m2rb3
+  - Delete b2
+  - List received borrow requests
+    - rb1 (rejected)
+- c3
+  - List borrowed books
+    - b3
+  - List available books
+    - b1
+  - List borrow requests
+    - rb3 (accepted), rb1 (rejected)
+- Log out from c1, c2, c3

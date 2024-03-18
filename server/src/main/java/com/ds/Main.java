@@ -401,7 +401,7 @@ public class Main {
                 int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
                 if (choice == 1 || choice == 2) {
                     if (statuses.get(requestIndex) != "PENDING") {
-                        Communication.sendMessage(writer, "This request is not pending");
+                        Communication.sendMessage(writer, "400. This request is not pending");
                         return;
                     }
                     updateBorrowRequestStatus(conn, requestIds.get(requestIndex),
