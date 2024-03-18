@@ -49,6 +49,7 @@
 - Nice to have
   - Abstraction for menu choices
   - Real-time chat
+  - Abstraction for selectAll, selectOne, insert, update, ...?
   - DB enums as constants in code?
   - Received/sent borrow requests only show receiver/lender?
   - Hide repeated parameters as class members?

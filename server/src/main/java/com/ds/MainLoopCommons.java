@@ -139,4 +139,38 @@ public class MainLoopCommons {
             st.executeUpdate();
         }
     }
-}
+
+    public static void listDetailedBooksByCondition(Connection conn, BufferedWriter writer, String condition)
+            throws IOException, SQLException {
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT
+                    Book.id,
+                    Book.title,
+                    Book.author,
+                    Book.genre,
+                    Book.description
+                    AppUser.username AS lenderUsername
+                FROM Book
+                LEFT JOIN AppUser ON Book.lenderId = AppUser.id
+                LEFT JOIN BookBorrowRequest ON BookBorrowRequest.bookId = Book.id""" + condition)) {
+
+            int total = 0;
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    ++total;
+                    Communication.sendMessage(writer,
+                            String.format("""
+                                    ID: %s
+                                    Title: %s
+                                    Author: %s
+                                    Genre: %s
+                                    Description: %s
+                                    Lender username: %s""", rs.getObject("id", UUID.class), rs.getString("title"),
+                                    rs.getString("author"), rs.getString("genre"), rs.getString("description"),
+                                    rs.getString("lenderUsername")));
+                    Communication.sendMessage(writer, "");
+                }
+            }
+            Communication.sendMessage(writer, "Total: " + total);
+        }
+    }}

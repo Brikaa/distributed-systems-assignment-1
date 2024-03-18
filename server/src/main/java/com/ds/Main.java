@@ -89,50 +89,25 @@ public class Main {
         while (true) {
             try {
                 if (session.id == null) {
-                    Communication.sendMessage(writer, "1. Register\n2. Login");
-                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
-                    if (choice == 1) {
-                        register(conn, writer, reader);
-                    } else {
-                        login(conn, session, writer, reader);
-                    }
+                    showGuestMenu(conn, session, writer, reader);
                 } else {
-                    showLoggedInUser(conn, session, writer);
-                    Communication.sendMessage(
-                            writer,
-                            """
-                                    1. List available books (includes borrowing, details)
-                                    2. Search for a book (includes borrowing, details)
-                                    3. Add a book for lending
-                                    4. List lent books (includes removing)
-                                    5. List borrow requests sent to you (includes accepting, rejecting, chat)
-                                    6. List borrow requests you sent (includes chat)
-                                    7. Log out""");
-                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 7);
-                    switch (choice) {
-                        case 1:
-                            listAllBooks(conn, session, writer, reader);
-                            break;
-                        case 2:
-                            searchBook(conn, session, writer, reader);
-                            break;
-                        case 3:
-                            addBook(conn, session, writer, reader);
-                            break;
-                        case 4:
-                            listLentBooks(conn, session, writer, reader);
-                            break;
-                        case 5:
-                            listReceivedBorrowRequests(conn, session, writer, reader);
-                            break;
-                        case 6:
-                            listSentBorrowRequests(conn, session, writer, reader);
-                            break;
-                        case 7:
-                            session.id = null;
-                            break;
-                        default:
-                            break;
+                    boolean isAdmin = false;
+
+                    try (PreparedStatement st = conn
+                            .prepareStatement("SELECT username, isAdmin from AppUser where id = ?")) {
+                        MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+                        try (ResultSet rs = st.executeQuery()) {
+                            rs.next();
+                            isAdmin = rs.getBoolean("isAdmin");
+                            Communication.sendMessage(writer,
+                                    "Logged in as: " + rs.getString("username") + (isAdmin ? " (admin)" : ""));
+                        }
+                    }
+
+                    if (isAdmin) {
+                        showAdminMenu(conn, session, writer, reader);
+                    } else {
+                        showUserMenu(conn, session, writer, reader);
                     }
                 }
             } catch (SQLException e) {
@@ -142,14 +117,80 @@ public class Main {
         }
     }
 
-    private static void showLoggedInUser(Connection conn, Session session, BufferedWriter writer)
+    private static void showGuestMenu(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
-        try (PreparedStatement st = conn.prepareStatement("SELECT username from AppUser where id = ?")) {
-            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
-            try (ResultSet rs = st.executeQuery()) {
-                rs.next();
-                Communication.sendMessage(writer, "Logged in as: " + rs.getString("username"));
-            }
+        Communication.sendMessage(writer, "1. Register\n2. Login");
+        int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
+        if (choice == 1) {
+            register(conn, writer, reader);
+        } else {
+            login(conn, session, writer, reader);
+        }
+    }
+
+    private static void showAdminMenu(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(
+                writer,
+                """
+                        1. List borrowed books
+                        2. List available books
+                        3. List borrow requests
+                        4. Log out""");
+        int choice = Communication.receiveMessageInRange(reader, writer, 1, 4);
+        switch (choice) {
+            case 1:
+                adminListBorrowedBooks(conn, writer);
+                break;
+            case 2:
+                adminListAvailableBooks(conn, writer);
+                break;
+            case 3:
+                adminListBookBorrowRequests(conn, writer);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static void showUserMenu(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+            throws IOException, SQLException {
+        Communication.sendMessage(
+                writer,
+                """
+                        1. List available books (includes borrowing, details)
+                        2. Search for a book (includes borrowing, details)
+                        3. Add a book for lending
+                        4. List lent books (includes removing)
+                        5. List borrow requests sent to you (includes accepting, rejecting, chat)
+                        6. List borrow requests you sent (includes chat)
+                        7. Log out""");
+        int choice = Communication.receiveMessageInRange(reader, writer, 1, 7);
+        switch (choice) {
+            case 1:
+                listAllBooks(conn, session, writer, reader);
+                break;
+            case 2:
+                searchBook(conn, session, writer, reader);
+                break;
+            case 3:
+                addBook(conn, session, writer, reader);
+                break;
+            case 4:
+                listLentBooks(conn, session, writer, reader);
+                break;
+            case 5:
+                listReceivedBorrowRequests(conn, session, writer, reader);
+                break;
+            case 6:
+                listSentBorrowRequests(conn, session, writer, reader);
+                break;
+            case 7:
+                logout(session);
+                ;
+                break;
+            default:
+                break;
         }
     }
 
@@ -434,6 +475,73 @@ public class Main {
                         session.id,
                         userIds.get(requestIndex),
                         usernames.get(requestIndex));
+            }
+        }
+    }
+
+    private static void logout(Session session) {
+        session.id = null;
+    }
+
+    private static void adminListBorrowedBooks(Connection conn, BufferedWriter writer)
+            throws IOException, SQLException {
+        MainLoopCommons.listDetailedBooksByCondition(conn, writer, "WHERE BookBorrowRequest.status = \"BORROWED\"");
+    }
+
+    private static void adminListAvailableBooks(Connection conn, BufferedWriter writer)
+            throws IOException, SQLException {
+        MainLoopCommons.listDetailedBooksByCondition(conn, writer, "WHERE BookBorrowRequest.status != \"BORROWED\"");
+    }
+
+    private static void adminListBookBorrowRequests(Connection conn, BufferedWriter writer)
+            throws IOException, SQLException {
+        try (PreparedStatement st = conn.prepareStatement("""
+                SELECT
+                    BookBorrowRequest.id,
+                    Book.name AS bookName,
+                    Borrower.username AS borrowerUsername,
+                    Lender.username AS lenderUsername,
+                    BookBorrowRequest.status
+                FROM BookBorrowRequest
+                LEFT JOIN Book on Book.id = BookBorrowRequest.bookId
+                LEFT JOIN AppUser AS Borrower ON BookBorrowRequest.borrowerId = Borrower.id
+                LEFT JOIN AppUser AS Lender ON Book.lenderId = Lender.id""")) {
+            try (ResultSet rs = st.executeQuery()) {
+                int totalBorrowed = 0;
+                int totalRejected = 0;
+                int totalReturned = 0;
+                int totalPending = 0;
+                while (rs.next()) {
+                    Communication.sendMessage(writer, String.format("""
+                            ID: %s
+                            Book name: %s
+                            Borrower username: %s
+                            Lender username: %s
+                            Status: %s""", rs.getObject("id", UUID.class), rs.getString("bookName"),
+                            rs.getString("borrowerUsername"), rs.getString("lenderUsername"), rs.getString("status")));
+                    switch (rs.getString("status")) {
+                        case "BORROWED":
+                            ++totalBorrowed;
+                            break;
+                        case "REJECTED":
+                            ++totalRejected;
+                            break;
+                        case "RETURNED":
+                            ++totalReturned;
+                            break;
+                        case "PENDING":
+                            ++totalPending;
+                            break;
+                        default:
+                            break;
+                    }
+                    Communication.sendMessage(writer, "");
+                }
+                Communication.sendMessage(writer, String.format("""
+                        Total borrowed: %s
+                        Total rejected: %s
+                        Total returned: %s
+                        Total pending: %s""", totalBorrowed, totalRejected, totalReturned, totalPending));
             }
         }
     }
