@@ -106,8 +106,9 @@ public class Main {
                                     3. Add a book for lending
                                     4. List lent books (includes removing)
                                     5. List borrow requests sent to you (includes accepting, rejecting, chat)
-                                    6. List borrow requests you sent (includes chat)""");
-                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 6);
+                                    6. List borrow requests you sent (includes chat)
+                                    7. Log out""");
+                    int choice = Communication.receiveMessageInRange(reader, writer, 1, 7);
                     switch (choice) {
                         case 1:
                             listAllBooks(conn, session, writer, reader);
@@ -126,6 +127,9 @@ public class Main {
                             break;
                         case 6:
                             listSentBorrowRequests(conn, session, writer, reader);
+                            break;
+                        case 7:
+                            session.id = null;
                             break;
                         default:
                             break;
