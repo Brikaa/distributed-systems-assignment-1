@@ -382,9 +382,9 @@ public class Main {
                             writer,
                             String.format("%s. from: %s - %s (%s)",
                                     ++i,
-                                    rs.getString(rs.getString("borrowerUsername")),
+                                    rs.getString("borrowerUsername"),
                                     rs.getString("bookName"),
-                                    rs.getString(rs.getString("status"))));
+                                    rs.getString("status")));
                 }
             }
             if (i == 0)
@@ -395,7 +395,7 @@ public class Main {
                 Communication.sendMessage(writer, "Enter the request number");
                 int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
                 if (choice == 1 || choice == 2) {
-                    if (statuses.get(requestIndex) != "PENDING") {
+                    if (!statuses.get(requestIndex).equals("PENDING")) {
                         Communication.sendMessage(writer, "400. This request is not pending");
                         return;
                     }
