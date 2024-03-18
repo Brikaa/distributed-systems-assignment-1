@@ -19,10 +19,10 @@ public class Main {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                System.out.println("Gracefully stopping the client...");
+                System.err.println("Gracefully stopping the client...");
                 socket.close();
             } catch (IOException e) {
-                System.out.println("Failed to close resources: " + e);
+                System.err.println("Failed to close resources: " + e);
             }
         }));
 
@@ -32,17 +32,17 @@ public class Main {
                     try {
                         String msg = reader.readLine();
                         if (msg == null) {
-                            System.out.println("Received null message, exiting...");
+                            System.err.println("Received null message, exiting...");
                             System.exit(1);
                         }
                         System.out.println(msg);
                     } catch (IOException e) {
-                        System.out.println("Failed to read from the server, exiting...: " + e);
+                        System.err.println("Failed to read from the server, exiting...: " + e);
                         System.exit(1);
                     }
                 }
             } catch (IOException e) {
-                System.out.println("Failed to close reader: " + e);
+                System.err.println("Failed to close reader: " + e);
             }
         });
         readerThread.start();
@@ -57,12 +57,12 @@ public class Main {
                         writer.newLine();
                         writer.flush();
                     } catch (IOException e) {
-                        System.out.println("Failed to write to the server, exiting...: " + e);
+                        System.err.println("Failed to write to the server, exiting...: " + e);
                         System.exit(1);
                     }
                 }
             } catch (IOException e) {
-                System.out.println("Failed to close writers: " + e);
+                System.err.println("Failed to close writers: " + e);
             }
         });
         writerThread.start();
