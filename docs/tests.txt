@@ -52,7 +52,14 @@
   - List borrow requests
     - None
 - c2
-  - Borrow b1, b2
+  - List books
+    - b1, b2
+  - Borrow b1
+  - List books
+    - b2
+  - Borrow b2
+  - List books
+    - None
   - List sent borrow requests
     - rb1, rb2
 - c1
