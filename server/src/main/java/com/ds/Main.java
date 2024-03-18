@@ -356,11 +356,11 @@ public class Main {
             BufferedReader reader) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT
-                    id,
-                    status,
+                    BookBorrowRequest.id,
+                    BookBorrowRequest.status,
                     Borrower.id AS borrowerId,
                     Borrower.username AS borrowerUsername,
-                    Book.name as bookName
+                    book.title AS bookName
                 FROM BookBorrowRequest
                 LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
                 LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
@@ -428,14 +428,14 @@ public class Main {
             BufferedReader reader) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT
-                    id,
-                    status,
+                    BookBorrowRequest.id,
+                    BookBorrowRequest.status,
                     Lender.id AS lenderId,
                     Lender.username AS lenderUsername,
-                    Book.name as bookName
+                    book.title AS bookName
                 FROM BookBorrowRequest
                 LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
-                LEFT JOIN AppUser AS Lender ON Lender.id = BookBorrowRequest.lenderId
+                LEFT JOIN AppUser AS Lender ON Lender.id = Book.lenderId
                 WHERE BookBorrowRequest.borrowerId = ?""")) {
             MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
 
@@ -497,7 +497,7 @@ public class Main {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT
                     BookBorrowRequest.id,
-                    Book.name AS bookName,
+                    book.title AS bookName,
                     Borrower.username AS borrowerUsername,
                     Lender.username AS lenderUsername,
                     BookBorrowRequest.status

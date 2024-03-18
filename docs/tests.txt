@@ -17,12 +17,14 @@
     - None
   - Search book by title
     - None
-  - Add book b1:ab1:db1:gb1
+  - Add book b1:ab1:gb1:db1
     - Success
-  - Add book b2:ab2:db2:gb2
+  - Add book b2:ab2:gb2:db2
     - Success
-  - List books
+  - List available books
     - None
+  - List lent books
+    - b1, b2
   - List received borrow requests
     - None
   - List sent borrow requests
@@ -34,7 +36,7 @@
     - Success
   - List books
     - b1, b2
-  - Add book b3:ab3:db3:gb3
+  - Add book b3:ab3:gb3:db3
   - List books
     - b1, b2
 - c3
