@@ -4,3 +4,70 @@
 - Test login
 - Test login invalid username
 - Test login invalid password
+
+- c1
+  - Register c1:c1123
+    - Success
+- c2
+  - Register c1:password
+    - Invalid
+- c1
+  - Login c1:c1234
+    - 401
+  - Login c2:c1123
+    - 404
+  - Login c1:c1123
+    - Success
+  - Log out
+  - Log in again
+  - List available books
+    - None
+  - Search book by title
+    - None
+  - Add book b1:ab1:db1:gb1
+    - Success
+  - Add book b2:ab2:db2:gb2
+    - Success
+  - List books
+    - None
+  - List received borrow requests
+    - None
+  - List sent borrow requests
+    - None
+- c2
+  - Register c2:c2123
+    - Success
+  - Log in c2:c2123
+    - Success
+  - List books
+    - b1, b2
+  - Add book b3:ab3:db3:gb3
+  - List books
+    - b1, b2
+- c3
+  - Register c3:c3123:admin
+  - Log in c3:c3123:admin
+    - Success
+  - List borrowed books
+    - None
+  - List available books
+    - b1, b2, b3
+  - List borrow requests
+    - None
+- c2
+  - Borrow b1, b2
+  - List sent borrow requests
+    - rb1, rb2
+- c1
+  - List received borrow requests
+    - rb1, rb2
+  - Borrow b3
+  - List sent borrow requests
+    - rb3
+- c3
+  - List borrow requests
+    - rb1, rb2, rb3
+  - List borrowed books
+    - None
+- c1
+  - Accept rb3

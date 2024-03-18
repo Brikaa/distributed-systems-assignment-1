@@ -46,10 +46,10 @@
     - Client also handles server close
   - try-with-resources to auto-close resources
 
-- Nice to have
+- Maybe and maybe not problems
   - Abstraction for menu choices
   - Real-time chat
-  - Abstraction for selectAll, selectOne, insert, update, ...?
-  - DB enums as constants in code?
-  - Received/sent borrow requests only show receiver/lender?
-  - Hide repeated parameters as class members?
+  - Abstraction for selectAll, selectOne, insert, update, ...
+  - DB enums as constants in code
+  - Received/sent borrow requests only show receiver/lender
+  - Hide repeated parameters as class members

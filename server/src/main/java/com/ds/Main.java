@@ -375,32 +375,37 @@ public class Main {
             ArrayList<UUID> requestIds = new ArrayList<>();
             ArrayList<UUID> userIds = new ArrayList<>();
             ArrayList<String> usernames = new ArrayList<>();
+            ArrayList<String> statuses = new ArrayList<>();
             int i = 0;
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     requestIds.add(rs.getObject("id", UUID.class));
                     userIds.add(rs.getObject("borrowerId", UUID.class));
-                    String borrowerUsername = rs.getString("borrowerUsername");
-                    usernames.add(borrowerUsername);
+                    usernames.add(rs.getString("borrowerUsername"));
+                    statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
                             String.format("%s. from: %s - %s (%s)",
                                     ++i,
-                                    rs.getString(borrowerUsername),
+                                    rs.getString(rs.getString("borrowerUsername")),
                                     rs.getString("bookName"),
-                                    rs.getString("status")));
+                                    rs.getString(rs.getString("status"))));
                 }
             }
             if (i == 0)
                 return;
-            Communication.sendMessage(writer, "1. Accept request\n2. Reject request\n3. Chat with user\n3. Back");
+            Communication.sendMessage(writer, "1. Accept request\n2. Reject request\n3. Chat with user\n4. Back");
             int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
             if (choice != 4) {
                 Communication.sendMessage(writer, "Enter the request number");
                 int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
                 if (choice == 1 || choice == 2) {
-                    String status = choice == 1 ? "BORROWED" : "REJECTED";
-                    updateBorrowRequestStatus(conn, requestIds.get(requestIndex), status);
+                    if (statuses.get(requestIndex) != "PENDING") {
+                        Communication.sendMessage(writer, "This request is not pending");
+                        return;
+                    }
+                    updateBorrowRequestStatus(conn, requestIds.get(requestIndex),
+                            choice == 1 ? "BORROWED" : "REJECTED");
                 } else {
                     MainLoopCommons.chatWithUser(
                             conn,
@@ -408,7 +413,8 @@ public class Main {
                             reader,
                             session.id,
                             userIds.get(requestIndex),
-                            usernames.get(requestIndex));
+                            usernames.get(requestIndex),
+                            statuses.get(requestIndex));
                 }
             }
         }
@@ -441,18 +447,19 @@ public class Main {
             ArrayList<UUID> requestIds = new ArrayList<>();
             ArrayList<UUID> userIds = new ArrayList<>();
             ArrayList<String> usernames = new ArrayList<>();
+            ArrayList<String> statuses = new ArrayList<>();
             int i = 0;
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     requestIds.add(rs.getObject("id", UUID.class));
                     userIds.add(rs.getObject("lenderId", UUID.class));
-                    String lenderUsername = rs.getString("lenderUsername");
-                    usernames.add(lenderUsername);
+                    usernames.add(rs.getString("lenderUsername"));
+                    statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
                             String.format("%s. to: %s - %s (%s)",
                                     ++i,
-                                    lenderUsername,
+                                    rs.getString("lenderUsername"),
                                     rs.getString("bookName"),
                                     rs.getString("status")));
                 }
@@ -470,7 +477,8 @@ public class Main {
                         reader,
                         session.id,
                         userIds.get(requestIndex),
-                        usernames.get(requestIndex));
+                        usernames.get(requestIndex),
+                        statuses.get(requestIndex));
             }
         }
     }
