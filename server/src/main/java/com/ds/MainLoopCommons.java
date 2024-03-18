@@ -29,7 +29,7 @@ public class MainLoopCommons {
                 .prepareStatement("""
                         SELECT Book.id, Book.title, Book.author, Book.genre, Book.description FROM Book
                         LEFT JOIN BookBorrowRequest ON Book.id = BookBorrowRequest.bookId
-                        WHERE BookBorrowRequest.status != 'BORROWED' AND Book.lenderId != ?""" + " "
+                        WHERE BookBorrowRequest.status IS DISTINCT FROM 'BORROWED' AND Book.lenderId <> ?""" + " "
                         + extraConditions)) {
             bindings = new ArrayList<>(bindings);
             bindings.add(0, (i, s) -> s.setObject(i, sessionId));
@@ -154,11 +154,11 @@ public class MainLoopCommons {
                     Book.title,
                     Book.author,
                     Book.genre,
-                    Book.description
+                    Book.description,
                     AppUser.username AS lenderUsername
                 FROM Book
                 LEFT JOIN AppUser ON Book.lenderId = AppUser.id
-                LEFT JOIN BookBorrowRequest ON BookBorrowRequest.bookId = Book.id""" + condition)) {
+                LEFT JOIN BookBorrowRequest ON BookBorrowRequest.bookId = Book.id""" + " " + condition)) {
 
             int total = 0;
             try (ResultSet rs = st.executeQuery()) {

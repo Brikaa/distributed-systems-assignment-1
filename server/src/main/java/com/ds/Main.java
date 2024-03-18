@@ -484,12 +484,13 @@ public class Main {
 
     private static void adminListBorrowedBooks(Connection conn, BufferedWriter writer)
             throws IOException, SQLException {
-        MainLoopCommons.listDetailedBooksByCondition(conn, writer, "WHERE BookBorrowRequest.status = \"BORROWED\"");
+        MainLoopCommons.listDetailedBooksByCondition(conn, writer, "WHERE BookBorrowRequest.status = 'BORROWED'");
     }
 
     private static void adminListAvailableBooks(Connection conn, BufferedWriter writer)
             throws IOException, SQLException {
-        MainLoopCommons.listDetailedBooksByCondition(conn, writer, "WHERE BookBorrowRequest.status != \"BORROWED\"");
+        MainLoopCommons.listDetailedBooksByCondition(conn, writer,
+                "WHERE BookBorrowRequest.status IS DISTINCT FROM 'BORROWED'");
     }
 
     private static void adminListBookBorrowRequests(Connection conn, BufferedWriter writer)
