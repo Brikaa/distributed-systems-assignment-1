@@ -1,18 +1,15 @@
-start-server:
-	docker compose up --build -d ds-server
+start:
+	docker compose up --build -d --scale ds-client=3
 	make logs
+
+stop:
+	docker compose down
+
+logs:
+	docker compose logs -f
 
 sql:
 	docker compose exec -it ds-db psql -U user -d app
 
 migrate:
 	docker compose down -v
-
-logs:
-	docker compose logs -f
-
-stop:
-	docker compose down
-
-start-client:
-	docker compose up --build -d ds-client && docker compose attach ds-client

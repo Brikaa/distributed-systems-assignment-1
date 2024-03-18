@@ -29,7 +29,8 @@ public class MainLoopCommons {
                 .prepareStatement("""
                         SELECT Book.id, Book.title, Book.author, Book.genre, Book.description FROM Book
                         LEFT JOIN BookBorrowRequest ON Book.id = BookBorrowRequest.bookId
-                        WHERE BookBorrowRequest.status != 'BORROWED' AND Book.lenderId != ? """ + extraConditions)) {
+                        WHERE BookBorrowRequest.status != 'BORROWED' AND Book.lenderId != ?""" + " " + extraConditions)) {
+            bindings = new ArrayList<>(bindings);
             bindings.add(0, (i, s) -> s.setObject(i, sessionId));
             applyBindings(st, bindings);
 

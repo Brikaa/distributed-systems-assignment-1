@@ -20,7 +20,7 @@ public class Communication {
 
     public static String receiveNonEmptyMessage(BufferedReader reader, BufferedWriter writer) throws IOException {
         String msg = receiveMessage(reader);
-        while (msg.equals("")) {
+        while (msg.isEmpty()) {
             sendMessage(writer, "Can't be empty");
             msg = receiveMessage(reader);
         }

@@ -49,3 +49,5 @@ services:
     environment:
       - SERVER_HOST=ds-server
       - SERVER_PORT=8080
+    deploy:
+      replicas: 3

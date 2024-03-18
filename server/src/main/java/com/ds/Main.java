@@ -195,20 +195,8 @@ public class Main {
 
     private static void register(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
-        Communication.sendMessage(writer, "Your name");
-        String name = Communication.receiveNonEmptyMessage(reader, writer);
         Communication.sendMessage(writer, "Your username");
         String username = Communication.receiveNonEmptyMessage(reader, writer);
-        Communication.sendMessage(writer, "Your password");
-        String password = Communication.receiveNonEmptyMessage(reader, writer);
-        Communication.sendMessage(writer, "Are you an admin\n1. Yes\n2. No");
-        boolean isAdmin = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1;
-
-        if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            Communication.sendMessage(writer, "Username, name and password can't be empty.");
-            return;
-        }
-
         // Check if user already exists
         try (PreparedStatement st = conn.prepareStatement("SELECT id FROM AppUser WHERE username=?")) {
             MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setString(i, username)));
@@ -219,6 +207,13 @@ public class Main {
                 }
             }
         }
+
+        Communication.sendMessage(writer, "Your name");
+        String name = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Your password");
+        String password = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Are you an admin\n1. Yes\n2. No");
+        boolean isAdmin = Communication.receiveMessageInRange(reader, writer, 1, 2) == 1;
 
         // Insert user
         try (PreparedStatement st = conn
