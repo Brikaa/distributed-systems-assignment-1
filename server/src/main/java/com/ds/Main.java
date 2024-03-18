@@ -105,7 +105,7 @@ public class Main {
                     }
 
                     if (isAdmin) {
-                        showAdminMenu(conn, session, writer, reader);
+                        showAdminMenu(conn, writer, reader);
                     } else {
                         showUserMenu(conn, session, writer, reader);
                     }
@@ -128,7 +128,7 @@ public class Main {
         }
     }
 
-    private static void showAdminMenu(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+    private static void showAdminMenu(Connection conn, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         Communication.sendMessage(
                 writer,
@@ -187,7 +187,6 @@ public class Main {
                 break;
             case 7:
                 logout(session);
-                ;
                 break;
             default:
                 break;
@@ -250,7 +249,7 @@ public class Main {
                 Communication.sendMessage(writer, "Your password");
                 String password = Communication.receiveNonEmptyMessage(reader, writer);
                 if (!rs.getString("password").equals(password)) {
-                    Communication.sendMessage(writer, "400. Invalid password");
+                    Communication.sendMessage(writer, "401. Invalid password");
                     return;
                 }
 
@@ -346,14 +345,12 @@ public class Main {
             if (choice == 1) {
                 Communication.sendMessage(writer, "Enter the book number");
                 int bookIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
-                removeBook(conn, session, writer, reader, bookIds.get(bookIndex));
+                removeBook(conn, bookIds.get(bookIndex));
             }
         }
     }
 
-    private static void removeBook(Connection conn, Session session, BufferedWriter writer, BufferedReader reader,
-            UUID bookId)
-            throws IOException, SQLException {
+    private static void removeBook(Connection conn, UUID bookId) throws SQLException {
         try (PreparedStatement st = conn.prepareStatement("DELETE FROM Book WHERE id = ?")) {
             MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, bookId)));
             st.executeUpdate();
@@ -417,8 +414,7 @@ public class Main {
         }
     }
 
-    private static void updateBorrowRequestStatus(Connection conn, UUID requestId, String status)
-            throws IOException, SQLException {
+    private static void updateBorrowRequestStatus(Connection conn, UUID requestId, String status) throws SQLException {
         try (PreparedStatement st = conn.prepareStatement("UPDATE BookBorrowRequest SET status = ? WHERE id = ?")) {
             MainLoopCommons.applyBindings(st, List.of(
                     (i, s) -> s.setString(i, status),

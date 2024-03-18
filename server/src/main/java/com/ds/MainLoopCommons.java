@@ -85,8 +85,7 @@ public class MainLoopCommons {
         }
     }
 
-    private static void sendBorrowRequest(Connection conn, UUID sessionId, UUID bookId)
-            throws IOException, SQLException {
+    private static void sendBorrowRequest(Connection conn, UUID sessionId, UUID bookId) throws SQLException {
         try (PreparedStatement st = conn.prepareStatement(
                 "INSERT INTO BookBorrowRequest(bookId, borrowerId, status) VALUES (?, ?, 'PENDING')")) {
             MainLoopCommons.applyBindings(st, List.of(
