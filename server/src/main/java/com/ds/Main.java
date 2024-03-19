@@ -330,7 +330,7 @@ public class Main {
                     bookIds.add(rs.getObject("id", UUID.class));
                     Communication.sendMessage(writer,
                             String.format(
-                                    "%s. %s - By %s - %s - $%s",
+                                    "(%s) %s - By %s - %s - $%s",
                                     ++i,
                                     rs.getString("title"),
                                     rs.getString("author"),
@@ -388,7 +388,7 @@ public class Main {
                     statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
-                            String.format("%s. from: %s - %s (%s)",
+                            String.format("(%s) from: %s - %s (%s)",
                                     ++i,
                                     rs.getString("borrowerUsername"),
                                     rs.getString("bookName"),
@@ -464,7 +464,7 @@ public class Main {
                     statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
-                            String.format("%s. to: %s - %s (%s)",
+                            String.format("(%s) to: %s - %s (%s)",
                                     ++i,
                                     rs.getString("lenderUsername"),
                                     rs.getString("bookName"),

@@ -63,7 +63,7 @@ public class MainLoopCommons {
                             rs.getString("price")));
                     Communication.sendMessage(writer,
                             String.format(
-                                    "%s. %s - By %s - %s - $%s",
+                                    "(%s) %s - By %s - %s - $%s",
                                     ++i,
                                     rs.getString("title"),
                                     rs.getString("author"),

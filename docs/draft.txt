@@ -55,4 +55,3 @@
   - Hide repeated parameters as class members
   - More fine-grained requests listing to avoid validation before operations on requests
   - Encapsulate chatConnection concurrent hashmap
-  - UX: different numbering format for listing stuff to avoid confusion with menu
