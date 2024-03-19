@@ -26,37 +26,21 @@ public class Main {
     public static void main(String[] args) throws SQLException, NumberFormatException, IOException {
         final Map<String, String> env = System.getenv();
 
-        // Set up db connection
+        // db connection properties
         Properties props = new Properties();
         props.setProperty("user", env.get("DB_USER"));
         props.setProperty("password", env.get("DB_PASSWORD"));
         final String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
-        Connection conn = DriverManager.getConnection(url, props);
 
-        // Set up server socket
-        ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")));
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                System.err.println("Gracefully stopping the server...");
-                socket.close();
-                conn.close();
-            } catch (IOException e) {
-                System.err.println("Failed to close socket: " + e);
-            } catch (SQLException e) {
-                System.err.println("Failed to close DB connection: " + e);
-            }
-        }));
-
-        // Connection accepting loop
-        System.err.println("Listening for connections...");
-        while (true) {
-            try {
+        try (ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")))) {
+            System.err.println("Listening for connections...");
+            while (true) {
                 Socket client = socket.accept();
                 System.err.println("Accepted client connection");
                 // Per-client thread
-                Thread t = new Thread(() -> {
+                new Thread(() -> {
                     try (
+                            Connection conn = DriverManager.getConnection(url, props);
                             BufferedWriter writer = new BufferedWriter(
                                     new OutputStreamWriter(client.getOutputStream()));
                             BufferedReader reader = new BufferedReader(
@@ -65,6 +49,8 @@ public class Main {
                     } catch (IOException e) {
                         System.err.println("Failed to communicate with client: " + e.toString());
                         return;
+                    } catch (SQLException e) {
+                        System.err.println("Failed to create a db connection for client: " + e.toString());
                     } finally {
                         try {
                             client.close();
@@ -73,12 +59,7 @@ public class Main {
                             System.err.println("Failed to close connection for client: " + e);
                         }
                     }
-                });
-
-                t.start();
-            } catch (IOException e) {
-                System.err.println("Failed to listen for connections: " + e);
-                break;
+                }).start();
             }
         }
     }
