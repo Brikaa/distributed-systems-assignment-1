@@ -104,11 +104,7 @@ public class MainLoopCommons {
     }
 
     public static void chatWithUser(Connection conn, BufferedWriter writer, BufferedReader reader, UUID sourceId,
-            UUID destinationId, String destinationUsername, String requestStatus) throws IOException, SQLException {
-        if (!requestStatus.equals("BORROWED")) {
-            Communication.sendMessage(writer, "400. This request's status is not 'BORROWED'");
-            return;
-        }
+            UUID destinationId, String destinationUsername) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT senderId, body FROM Message
                 WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)

@@ -158,12 +158,20 @@ public class Main {
         Communication.sendMessage(
                 writer,
                 """
-                        1. List available books (includes borrowing, details)
-                        2. Search for a book (includes borrowing, details)
+                        1. List available books
+                            - You can view book details and borrow them here
+                        2. Search for a book
+                            - You can also view book details and borrow them here
                         3. Add a book for lending
-                        4. List lent books (includes removing)
-                        5. List borrow requests sent to you (includes accepting, rejecting, chat)
-                        6. List borrow requests you sent (includes chat)
+                        4. List lent books
+                            - These are the books you have lent to the bookstore
+                            - You can remove a book here
+                        5. List borrow requests sent to you
+                            - You can accept/reject requests here
+                            - You can chat with users that have borrowed your books here
+                        6. List borrow requests you sent
+                            - You can return borrowed books here
+                            - You can chat with users from whom you have borrowed books here
                         7. Log out""");
         int choice = Communication.receiveMessageInRange(reader, writer, 1, 7);
         switch (choice) {
@@ -402,14 +410,17 @@ public class Main {
                     updateBorrowRequestStatus(conn, requestIds.get(requestIndex),
                             choice == 1 ? "BORROWED" : "REJECTED");
                 } else {
+                    if (!statuses.get(requestIndex).equals("BORROWED")) {
+                        Communication.sendMessage(writer, "400. This request's status is not 'BORROWED'");
+                        return;
+                    }
                     MainLoopCommons.chatWithUser(
                             conn,
                             writer,
                             reader,
                             session.id,
                             userIds.get(requestIndex),
-                            usernames.get(requestIndex),
-                            statuses.get(requestIndex));
+                            usernames.get(requestIndex));
                 }
             }
         }
@@ -460,19 +471,28 @@ public class Main {
             }
             if (i == 0)
                 return;
-            Communication.sendMessage(writer, "1. Chat with user\n2. Back");
-            int choice = Communication.receiveMessageInRange(reader, writer, 1, 2);
-            if (choice != 2) {
+            Communication.sendMessage(writer, "1. Return book\n2. Chat with user\n2. Back");
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
+            if (choice != 3) {
                 Communication.sendMessage(writer, "Enter the request number");
                 int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
-                MainLoopCommons.chatWithUser(
-                        conn,
-                        writer,
-                        reader,
-                        session.id,
-                        userIds.get(requestIndex),
-                        usernames.get(requestIndex),
-                        statuses.get(requestIndex));
+
+                if (!statuses.get(requestIndex).equals("BORROWED")) {
+                    Communication.sendMessage(writer, "400. This request's status is not 'BORROWED'");
+                    return;
+                }
+
+                if (choice == 1) {
+                    updateBorrowRequestStatus(conn, requestIds.get(requestIndex), "RETURNED");
+                } else {
+                    MainLoopCommons.chatWithUser(
+                            conn,
+                            writer,
+                            reader,
+                            session.id,
+                            userIds.get(requestIndex),
+                            usernames.get(requestIndex));
+                }
             }
         }
     }

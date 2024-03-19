@@ -107,6 +107,9 @@
     - rb3 (borrowed), rb1 (rejected)
 - c1
   - Return b3
+    - Success
+  - Return b3
+    - Error, not borrowed
 - c3
   - List borrowed books
     - none

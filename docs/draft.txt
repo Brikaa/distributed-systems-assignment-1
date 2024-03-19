@@ -56,5 +56,5 @@
   - Real-time chat
   - Abstraction for selectAll, selectOne, insert, update, ...
   - DB enums as constants in code
-  - Received/sent borrow requests only show receiver/lender
   - Hide repeated parameters as class members
+  - More fine-grained requests listing to avoid validation before operations on requests
