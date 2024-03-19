@@ -90,7 +90,7 @@
   - Reject rb1
   - Chat with user of rb1
     - Error, not borrowed
-  - Chat with user of rb3 (it is the same user but a different request)
+  - List sent borrow requests and chat with user of rb3 (it is the same user but a different request)
     - m1rb3
   - Send message m2rb3
   - Chat with user of rb3
@@ -104,5 +104,13 @@
   - List available books
     - b1
   - List borrow requests
-    - rb3 (accepted), rb1 (rejected)
-- Log out from c1, c2, c3
+    - rb3 (borrowed), rb1 (rejected)
+- c1
+  - Return b3
+- c3
+  - List borrowed books
+    - none
+  - List available books
+    - b1, b3
+  - List borrow requests
+    - rb3 (returned), rb1 (rejected)

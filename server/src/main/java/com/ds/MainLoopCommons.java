@@ -121,8 +121,8 @@ public class MainLoopCommons {
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     UUID senderId = rs.getObject("senderId", UUID.class);
-                    String sourceName = senderId.equals(sourceId) ? "" : (destinationUsername + ": ");
-                    Communication.sendMessage(writer, sourceName + rs.getString("body"));
+                    String sourceName = senderId.equals(sourceId) ? "You" : destinationUsername;
+                    Communication.sendMessage(writer, sourceName + ": " + rs.getString("body"));
                 }
             }
         }
@@ -134,11 +134,12 @@ public class MainLoopCommons {
             }
             Communication.sendMessage(writer, "Message");
             String message = Communication.receiveNonEmptyMessage(reader, writer);
-            sendMessage(conn, sourceId, destinationId, message);
+            insertMessage(conn, sourceId, destinationId, message);
+            Communication.sendMessage(writer, "You: " + message);
         }
     }
 
-    private static void sendMessage(Connection conn, UUID sourceId, UUID destinationId, String body)
+    private static void insertMessage(Connection conn, UUID sourceId, UUID destinationId, String body)
             throws SQLException {
         try (PreparedStatement st = conn
                 .prepareStatement("Insert INTO Message(senderId, receiverId, body, timestamp) VALUES (?, ?, ?, ?)")) {

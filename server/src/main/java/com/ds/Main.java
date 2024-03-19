@@ -390,7 +390,7 @@ public class Main {
             if (i == 0)
                 return;
             Communication.sendMessage(writer, "1. Accept request\n2. Reject request\n3. Chat with user\n4. Back");
-            int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
+            int choice = Communication.receiveMessageInRange(reader, writer, 1, 4);
             if (choice != 4) {
                 Communication.sendMessage(writer, "Enter the request number");
                 int requestIndex = Communication.receiveMessageInRange(reader, writer, 1, i) - 1;
