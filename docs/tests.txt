@@ -18,7 +18,14 @@
   - Search book by title
     - None
   - Add book b1:ab1:gb1:db1
-    - Success
+    - Price negative
+      - Fail
+    - Price containing non-numeric characters
+      - Fail
+    - Price containing multiple dots
+      - Fail
+    - Normal floating point price
+      - Success
   - Add book b2:ab2:gb2:db2
     - Success
   - List available books

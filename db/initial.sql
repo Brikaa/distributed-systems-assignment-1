@@ -15,7 +15,8 @@ CREATE TABLE Book (
   title VARCHAR(255) NOT NULL,
   description VARCHAR(625) NOT NULL,
   author VARCHAR(255) NOT NULL,
-  genre varchar(255) NOT NULL
+  genre VARCHAR(255) NOT NULL,
+  price NUMERIC NOT NULL
 );
 
 CREATE TABLE BookBorrowRequest (

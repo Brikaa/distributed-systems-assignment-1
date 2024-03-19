@@ -32,17 +32,13 @@
     - The server is responsible for driving the communication
   - User gets to choose account type on registration
   - Description is needed to differentiate book listing view from detailed view
-  - Borrowing a book hides it from the bookstore
-    - Returning it unhides it
-    - Pending borrow requests are left as they are
-  - Chatting between lender and borrower is not real-time
-    - A lender can chat with a borrower if there is an accepted borrow request between them
-  - The admin statistics are numbers not listings (hence the term "statistics")
   - "ACCEPTED" borrow request status is split into "BORROWED" and "RETURNED"
+  - A lender can chat with a borrower if there is an "BORROWED" borrow request between them
   - "browse through the bookstore's catalog" means list all available books for borrowing
-    - A book that is already borrowed is not available for borrowing
-    - A book that is uploaded by the browsing user is not available for borrowing
-    - A book that the browsing user already sent a borrow request for is not available for borrowing
+    - The following books are not available for borrowing and hence will not be shown
+      - A book that is already borrowed
+      - A book that is uploaded by the browsing user
+      - A book that the browsing user already sent a borrow request for
 
 - Extra points
   - Graceful exiting
@@ -59,3 +55,4 @@
   - Hide repeated parameters as class members
   - More fine-grained requests listing to avoid validation before operations on requests
   - Encapsulate chatConnection concurrent hashmap
+  - UX: different numbering format for listing stuff to avoid confusion with menu

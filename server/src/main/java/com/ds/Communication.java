@@ -29,10 +29,10 @@ public class Communication {
 
     public static int receiveMessageInRange(BufferedReader reader, BufferedWriter writer, int start, int end)
             throws IOException {
-        Integer response = parseIntOrNull(receiveMessage(reader));
+        Integer response = parseIntOrNull(receiveNonEmptyMessage(reader, writer));
         while (response == null || response < start || response > end) {
             sendMessage(writer, "Invalid choice");
-            response = parseIntOrNull(receiveMessage(reader));
+            response = parseIntOrNull(receiveNonEmptyMessage(reader, writer));
         }
         return response;
     }
@@ -42,6 +42,22 @@ public class Communication {
             return null;
         }
         return Integer.parseInt(str);
+    }
+
+    public static double receivePositiveDouble(BufferedReader reader, BufferedWriter writer) throws IOException {
+        Double msg = parsePositiveDoubleOrNull(receiveNonEmptyMessage(reader, writer));
+        while (msg == null) {
+            sendMessage(writer, "Must be a positive real number");
+            msg = parsePositiveDoubleOrNull(receiveNonEmptyMessage(reader, writer));
+        }
+        return msg;
+    }
+
+    private static Double parsePositiveDoubleOrNull(String str) {
+        if (!str.matches("\\d+(\\.\\d+)?")) {
+            return null;
+        }
+        return Double.parseDouble(str);
     }
 
 }

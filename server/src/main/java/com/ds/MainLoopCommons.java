@@ -28,7 +28,7 @@ public class MainLoopCommons {
             List<Binding> bindings) throws IOException, SQLException {
         try (PreparedStatement st = conn
                 .prepareStatement("""
-                        SELECT Book.id, Book.title, Book.author, Book.genre, Book.description FROM Book
+                        SELECT Book.id, Book.title, Book.author, Book.genre, Book.description, Book.price FROM Book
                         LEFT JOIN BookBorrowRequest ON Book.id = BookBorrowRequest.bookId
                         WHERE
                             Book.lenderId <> ?
@@ -53,19 +53,22 @@ public class MainLoopCommons {
                             Author: %s
                             Title: %s
                             Genre: %s
-                            Description: %s""",
+                            Description: %s
+                            Price: $%s""",
                             rs.getObject("id", UUID.class),
                             rs.getString("author"),
                             rs.getString("title"),
                             rs.getString("genre"),
-                            rs.getString("description")));
+                            rs.getString("description"),
+                            rs.getString("price")));
                     Communication.sendMessage(writer,
                             String.format(
-                                    "%s. %s - By %s - %s",
+                                    "%s. %s - By %s - %s - $%s",
                                     ++i,
                                     rs.getString("title"),
                                     rs.getString("author"),
-                                    rs.getString("genre")));
+                                    rs.getString("genre"),
+                                    rs.getString("price")));
                 }
                 if (i == 0)
                     return;
@@ -186,6 +189,7 @@ public class MainLoopCommons {
                     Book.author,
                     Book.genre,
                     Book.description,
+                    Book.price,
                     AppUser.username AS lenderUsername
                 FROM Book
                 LEFT JOIN AppUser ON Book.lenderId = AppUser.id
@@ -202,9 +206,10 @@ public class MainLoopCommons {
                                     Author: %s
                                     Genre: %s
                                     Description: %s
+                                    Price: $%s
                                     Lender username: %s""", rs.getObject("id", UUID.class), rs.getString("title"),
                                     rs.getString("author"), rs.getString("genre"), rs.getString("description"),
-                                    rs.getString("lenderUsername")));
+                                    rs.getString("price"), rs.getString("lenderUsername")));
                     Communication.sendMessage(writer, "");
                 }
             }

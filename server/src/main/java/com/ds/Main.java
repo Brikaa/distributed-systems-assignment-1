@@ -296,10 +296,14 @@ public class Main {
         String genre = Communication.receiveNonEmptyMessage(reader, writer);
         Communication.sendMessage(writer, "Book description");
         String description = Communication.receiveNonEmptyMessage(reader, writer);
+        Communication.sendMessage(writer, "Book price");
+        double price = Communication.receivePositiveDouble(reader, writer);
 
         try (PreparedStatement st = conn
-                .prepareStatement(
-                        "INSERT INTO Book(lenderId, title, author, genre, description) VALUES (?, ?, ?, ?, ?)")) {
+                .prepareStatement("""
+                        INSERT INTO Book(
+                            lenderId, title, author, genre, description, price
+                        ) VALUES (?, ?, ?, ?, ?, ?)""")) {
             MainLoopCommons.applyBindings(
                     st,
                     List.of(
@@ -307,7 +311,8 @@ public class Main {
                             (i, s) -> s.setString(i, title),
                             (i, s) -> s.setString(i, author),
                             (i, s) -> s.setString(i, genre),
-                            (i, s) -> s.setString(i, description)));
+                            (i, s) -> s.setString(i, description),
+                            (i, s) -> s.setDouble(i, price)));
             st.executeUpdate();
         }
     }
@@ -315,7 +320,7 @@ public class Main {
     private static void listLentBooks(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
             throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
-                SELECT Book.id, Book.title, Book.author, Book.genre FROM Book
+                SELECT Book.id, Book.title, Book.author, Book.genre, Book.price FROM Book
                 WHERE Book.lenderId = ?""")) {
             MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.userId)));
             ArrayList<UUID> bookIds = new ArrayList<>();
@@ -325,11 +330,12 @@ public class Main {
                     bookIds.add(rs.getObject("id", UUID.class));
                     Communication.sendMessage(writer,
                             String.format(
-                                    "%s. %s - By %s - %s",
+                                    "%s. %s - By %s - %s - $%s",
                                     ++i,
                                     rs.getString("title"),
                                     rs.getString("author"),
-                                    rs.getString("genre")));
+                                    rs.getString("genre"),
+                                    rs.getString("price")));
 
                 }
             }
@@ -467,7 +473,7 @@ public class Main {
             }
             if (i == 0)
                 return;
-            Communication.sendMessage(writer, "1. Return book\n2. Chat with user\n2. Back");
+            Communication.sendMessage(writer, "1. Return book\n2. Chat with user\n3. Back");
             int choice = Communication.receiveMessageInRange(reader, writer, 1, 3);
             if (choice != 3) {
                 Communication.sendMessage(writer, "Enter the request number");
