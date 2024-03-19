@@ -117,3 +117,15 @@
     - b1, b3
   - List borrow requests
     - rb3 (returned), rb1 (rejected)
+- c1
+  - Re-add b2:ab2:gb2:db2
+    - Success
+- c2
+  - Search by author ab2
+    - b2
+  - Search by genre gb1
+    - b1
+  - Search by title b2
+    - b2
+  - List all available books
+    - b1, b2
