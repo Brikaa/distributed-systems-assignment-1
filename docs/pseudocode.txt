@@ -33,3 +33,17 @@
     - select count from Book left join BookBorrowRequest where status = 'BORROWED'
     - select count from Book left join BookBorrowRequest where status != 'BORROWED'
     - select count from BookBorrowRequest group by status
+
+- Chat
+  # tells if source_user_id can receive real-time messages from destination_user_id
+  - chatConnections: { source_user_id: { destination_user_id: writer } }
+
+  - When client source opens chat with destination client
+    - chatConnections[source_id][destination_id] = source_writer
+  - When client source exits chat with destination client
+    - delete chatConnections[source_id][destination_id]
+  - When source client inserts a message
+    - If chatConnections[destinationId] and chatConnections[destinationId][sourceId] exist
+      - Also send the message to: chatConnections[destinationId][sourceId]
+        - If error
+          - Delete chatConnections[destinationId]

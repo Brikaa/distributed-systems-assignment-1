@@ -11,6 +11,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 interface Binding {
     void apply(int parameterIndex, PreparedStatement st) throws SQLException;
@@ -103,22 +104,31 @@ public class MainLoopCommons {
         }
     }
 
-    public static void chatWithUser(Connection conn, BufferedWriter writer, BufferedReader reader, UUID sourceId,
-            UUID destinationId, String destinationUsername) throws IOException, SQLException {
+    public static void chatWithUser(
+            Connection conn,
+            ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections,
+            BufferedWriter writer,
+            BufferedReader reader,
+            UUID sessionId,
+            UUID destinationId) throws IOException, SQLException {
+        {
+            ConcurrentHashMap<UUID, BufferedWriter> m = new ConcurrentHashMap<>();
+            m.put(destinationId, writer);
+            chatConnections.put(sessionId, m);
+        }
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT senderId, body FROM Message
                 WHERE (senderId = ? AND receiverId = ?) OR (senderId = ? AND receiverId = ?)
                 ORDER BY timestamp ASC""")) {
             applyBindings(st, List.of(
-                    (i, s) -> s.setObject(i, sourceId),
+                    (i, s) -> s.setObject(i, sessionId),
                     (i, s) -> s.setObject(i, destinationId),
                     (i, s) -> s.setObject(i, destinationId),
-                    (i, s) -> s.setObject(i, sourceId)));
+                    (i, s) -> s.setObject(i, sessionId)));
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     UUID senderId = rs.getObject("senderId", UUID.class);
-                    String sourceName = senderId.equals(sourceId) ? "You" : destinationUsername;
-                    Communication.sendMessage(writer, sourceName + ": " + rs.getString("body"));
+                    Communication.sendMessage(writer, createMessage(sessionId, senderId, rs.getString("body")));
                 }
             }
         }
@@ -128,11 +138,30 @@ public class MainLoopCommons {
             if (choice == 2) {
                 break;
             }
-            Communication.sendMessage(writer, "Message");
+            Communication.sendMessage(writer, "Enter the message");
             String message = Communication.receiveNonEmptyMessage(reader, writer);
-            insertMessage(conn, sourceId, destinationId, message);
-            Communication.sendMessage(writer, "You: " + message);
+            insertMessage(conn, sessionId, destinationId, message);
+
+            // Send the message to the source client (for UX)
+            Communication.sendMessage(writer, createMessage(sessionId, sessionId, message));
+            // Send the message to the destination client if they are in the chat
+            if (chatConnections.containsKey(destinationId)
+                    && chatConnections.get(destinationId).containsKey(sessionId)) {
+                try {
+                    Communication.sendMessage(chatConnections.get(destinationId).get(sessionId),
+                            createMessage(destinationId, sessionId, message));
+                } catch (IOException e) {
+                    System.err.println("Failed to send message to destination client, removing chat connection");
+                    chatConnections.remove(destinationId);
+                }
+            }
         }
+        chatConnections.remove(sessionId);
+    }
+
+    private static String createMessage(UUID sessionId, UUID secondPartyId, String body) {
+        String sourceName = secondPartyId.equals(sessionId) ? ">" : "<";
+        return sourceName + " " + body;
     }
 
     private static void insertMessage(Connection conn, UUID sourceId, UUID destinationId, String body)

@@ -129,3 +129,24 @@
     - b2
   - List all available books
     - b1, b2
+  - Borrow b1 (rb1_2)
+- c1
+  - List received borrow requests, accept rb1_2
+    - Success
+  - Start chat with user of rb1_2
+- c2
+  - List sent borrow requests
+  - Start chat with user of rb1_2
+  - Send a message m3
+    - Observe m3 getting sent in real time at c1
+- c1
+  - Send a message m4 in rb1_2
+    - Observe m4 getting sent in real time at c2
+- c2
+  - Prematurely exit while in chat
+- c1
+  - Send a message m5 in rb1_2
+    - Success
+  - Exit chat
+  - List messages in rb1_2
+    - m1, m2, m3, m4, m5

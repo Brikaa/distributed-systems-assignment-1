@@ -17,9 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 class Session {
-    public UUID id;
+    public UUID userId;
 }
 
 public class Main {
@@ -31,6 +32,8 @@ public class Main {
         props.setProperty("user", env.get("DB_USER"));
         props.setProperty("password", env.get("DB_PASSWORD"));
         final String url = String.format("jdbc:postgresql://%s/%s", env.get("DB_HOST"), env.get("DB_NAME"));
+
+        ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections = new ConcurrentHashMap<>();
 
         try (ServerSocket socket = new ServerSocket(Integer.parseInt(env.get("PORT")))) {
             System.err.println("Listening for connections...");
@@ -45,7 +48,7 @@ public class Main {
                                     new OutputStreamWriter(client.getOutputStream()));
                             BufferedReader reader = new BufferedReader(
                                     new InputStreamReader(client.getInputStream()))) {
-                        runClientLoop(conn, writer, reader);
+                        runClientLoop(conn, chatConnections, writer, reader);
                     } catch (IOException e) {
                         System.err.println("Failed to communicate with client: " + e.toString());
                         return;
@@ -64,19 +67,22 @@ public class Main {
         }
     }
 
-    private static void runClientLoop(Connection conn, BufferedWriter writer, BufferedReader reader)
-            throws IOException {
+    private static void runClientLoop(
+            Connection conn,
+            ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections,
+            BufferedWriter writer,
+            BufferedReader reader) throws IOException {
         Session session = new Session();
         while (true) {
             try {
-                if (session.id == null) {
+                if (session.userId == null) {
                     showGuestMenu(conn, session, writer, reader);
                 } else {
                     boolean isAdmin = false;
 
                     try (PreparedStatement st = conn
                             .prepareStatement("SELECT username, isAdmin from AppUser where id = ?")) {
-                        MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+                        MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.userId)));
                         try (ResultSet rs = st.executeQuery()) {
                             rs.next();
                             isAdmin = rs.getBoolean("isAdmin");
@@ -88,7 +94,7 @@ public class Main {
                     if (isAdmin) {
                         showAdminMenu(conn, writer, reader);
                     } else {
-                        showUserMenu(conn, session, writer, reader);
+                        showUserMenu(conn, chatConnections, session, writer, reader);
                     }
                 }
             } catch (SQLException e) {
@@ -134,7 +140,12 @@ public class Main {
         }
     }
 
-    private static void showUserMenu(Connection conn, Session session, BufferedWriter writer, BufferedReader reader)
+    private static void showUserMenu(
+            Connection conn,
+            ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections,
+            Session session,
+            BufferedWriter writer,
+            BufferedReader reader)
             throws IOException, SQLException {
         Communication.sendMessage(
                 writer,
@@ -169,10 +180,10 @@ public class Main {
                 listLentBooks(conn, session, writer, reader);
                 break;
             case 5:
-                listReceivedBorrowRequests(conn, session, writer, reader);
+                listReceivedBorrowRequests(conn, chatConnections, session, writer, reader);
                 break;
             case 6:
-                listSentBorrowRequests(conn, session, writer, reader);
+                listSentBorrowRequests(conn, chatConnections, session, writer, reader);
                 break;
             case 7:
                 logout(session);
@@ -237,7 +248,7 @@ public class Main {
                     return;
                 }
 
-                session.id = rs.getObject("id", UUID.class);
+                session.userId = rs.getObject("id", UUID.class);
             }
         }
     }
@@ -246,7 +257,7 @@ public class Main {
             throws IOException, SQLException {
         MainLoopCommons.listAvailableBooksByCondition(
                 conn,
-                session.id,
+                session.userId,
                 writer,
                 reader,
                 "",
@@ -267,7 +278,7 @@ public class Main {
         String filter = Communication.receiveNonEmptyMessage(reader, writer);
         MainLoopCommons.listAvailableBooksByCondition(
                 conn,
-                session.id,
+                session.userId,
                 writer,
                 reader,
                 String.format("AND %s=?", filterOn),
@@ -292,7 +303,7 @@ public class Main {
             MainLoopCommons.applyBindings(
                     st,
                     List.of(
-                            (i, s) -> s.setObject(i, session.id),
+                            (i, s) -> s.setObject(i, session.userId),
                             (i, s) -> s.setString(i, title),
                             (i, s) -> s.setString(i, author),
                             (i, s) -> s.setString(i, genre),
@@ -306,7 +317,7 @@ public class Main {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT Book.id, Book.title, Book.author, Book.genre FROM Book
                 WHERE Book.lenderId = ?""")) {
-            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.userId)));
             ArrayList<UUID> bookIds = new ArrayList<>();
             int i = 0;
             try (ResultSet rs = st.executeQuery()) {
@@ -341,7 +352,11 @@ public class Main {
         }
     }
 
-    private static void listReceivedBorrowRequests(Connection conn, Session session, BufferedWriter writer,
+    private static void listReceivedBorrowRequests(
+            Connection conn,
+            ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections,
+            Session session,
+            BufferedWriter writer,
             BufferedReader reader) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT
@@ -354,18 +369,16 @@ public class Main {
                 LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
                 LEFT JOIN AppUser AS Borrower ON Borrower.id = BookBorrowRequest.borrowerId
                 WHERE Book.lenderId = ?""")) {
-            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.userId)));
 
             ArrayList<UUID> requestIds = new ArrayList<>();
             ArrayList<UUID> userIds = new ArrayList<>();
-            ArrayList<String> usernames = new ArrayList<>();
             ArrayList<String> statuses = new ArrayList<>();
             int i = 0;
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     requestIds.add(rs.getObject("id", UUID.class));
                     userIds.add(rs.getObject("borrowerId", UUID.class));
-                    usernames.add(rs.getString("borrowerUsername"));
                     statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
@@ -397,11 +410,11 @@ public class Main {
                     }
                     MainLoopCommons.chatWithUser(
                             conn,
+                            chatConnections,
                             writer,
                             reader,
-                            session.id,
-                            userIds.get(requestIndex),
-                            usernames.get(requestIndex));
+                            session.userId,
+                            userIds.get(requestIndex));
                 }
             }
         }
@@ -415,7 +428,11 @@ public class Main {
         }
     }
 
-    private static void listSentBorrowRequests(Connection conn, Session session, BufferedWriter writer,
+    private static void listSentBorrowRequests(
+            Connection conn,
+            ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, BufferedWriter>> chatConnections,
+            Session session,
+            BufferedWriter writer,
             BufferedReader reader) throws IOException, SQLException {
         try (PreparedStatement st = conn.prepareStatement("""
                 SELECT
@@ -428,18 +445,16 @@ public class Main {
                 LEFT JOIN Book ON Book.id = BookBorrowRequest.bookId
                 LEFT JOIN AppUser AS Lender ON Lender.id = Book.lenderId
                 WHERE BookBorrowRequest.borrowerId = ?""")) {
-            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.id)));
+            MainLoopCommons.applyBindings(st, List.of((i, s) -> s.setObject(i, session.userId)));
 
             ArrayList<UUID> requestIds = new ArrayList<>();
             ArrayList<UUID> userIds = new ArrayList<>();
-            ArrayList<String> usernames = new ArrayList<>();
             ArrayList<String> statuses = new ArrayList<>();
             int i = 0;
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     requestIds.add(rs.getObject("id", UUID.class));
                     userIds.add(rs.getObject("lenderId", UUID.class));
-                    usernames.add(rs.getString("lenderUsername"));
                     statuses.add(rs.getString("status"));
                     Communication.sendMessage(
                             writer,
@@ -468,18 +483,18 @@ public class Main {
                 } else {
                     MainLoopCommons.chatWithUser(
                             conn,
+                            chatConnections,
                             writer,
                             reader,
-                            session.id,
-                            userIds.get(requestIndex),
-                            usernames.get(requestIndex));
+                            session.userId,
+                            userIds.get(requestIndex));
                 }
             }
         }
     }
 
     private static void logout(Session session) {
-        session.id = null;
+        session.userId = null;
     }
 
     private static void adminListBorrowedBooks(Connection conn, BufferedWriter writer)
